@@ -7,7 +7,8 @@ Item {
     id: preview
     required property string url
     property real maxWidth: 480
-    property var info: Previews.get(url)
+    // Page links are only fetched with link previews on; images are recognised by extension.
+    property var info: Previews.get(url, AppSettings.linkPreviews)
 
     readonly property bool isImage: info.status === "ready" && info.type === "image" && AppSettings.inlineImages
     readonly property bool isCard: info.status === "ready" && info.type === "page" && AppSettings.linkPreviews
@@ -15,15 +16,31 @@ Item {
 
     readonly property var image: imgFrame.img
     readonly property int imageStatus: image ? image.status : Image.Null
-    width: isImage ? Math.min(maxWidth, imageStatus === Image.Ready ? image.width : 240)
-                   : isCard ? Math.min(maxWidth, 460) : 0
-    height: isImage ? (imageStatus === Image.Ready ? image.height + 4 : (imageStatus === Image.Error ? 0 : 124))
+    readonly property bool animated: /\.(gif|webp)(\?|#|$)/i.test(info.image || "")
+    // The image's natural size: from the loaded image, else remembered from an earlier run, so the
+    // preview has its final size before the image arrives and nothing below it jumps.
+    readonly property real naturalWidth: imageStatus === Image.Ready ? (animated ? image.implicitWidth : image.implicitWidth / 2)
+                                                                     : (info.iw || 0)
+    readonly property real naturalHeight: imageStatus === Image.Ready ? (animated ? image.implicitHeight : image.implicitHeight / 2)
+                                                                      : (info.ih || 0)
+    readonly property real imageWidth: naturalWidth > 0 ? Math.min(maxWidth, naturalWidth) : 240
+    readonly property real imageHeight: naturalWidth > 0 ? Math.min(320, naturalHeight * imageWidth / naturalWidth) : 120
+    // (The size arrives just after the status turns Ready, so watch the size itself.)
+    function rememberSize() {
+        if (imageStatus === Image.Ready && naturalWidth > 0 && naturalHeight > 0)
+            Previews.rememberSize(url, Math.round(naturalWidth), Math.round(naturalHeight))
+    }
+    onNaturalWidthChanged: rememberSize()
+    onNaturalHeightChanged: rememberSize()
+
+    width: isImage ? imageWidth : isCard ? Math.min(maxWidth, 460) : 0
+    height: isImage ? (imageStatus === Image.Error ? 0 : imageHeight + 4)
                     : isCard ? card.implicitHeight + 4 : 0
     visible: height > 0
 
     Connections {
         target: Previews
-        function onUpdated(u) { if (u === preview.url) preview.info = Previews.get(preview.url) }
+        function onUpdated(u) { if (u === preview.url) preview.info = Previews.get(preview.url, AppSettings.linkPreviews) }
     }
 
     // ---- image
@@ -41,31 +58,31 @@ Item {
             anchors.left: parent.left
             anchors.top: parent.top
             active: preview.isImage
-            sourceComponent: /\.(gif|webp)(\?|#|$)/i.test(preview.info.image || "") ? animated : still
+            sourceComponent: preview.animated ? animatedImage : stillImage
         }
         Component {
-            id: still
+            id: stillImage
             Image {
                 source: preview.info.image
                 asynchronous: true
                 cache: true
                 fillMode: Image.PreserveAspectFit
                 sourceSize.width: Math.round(preview.maxWidth * 2)
-                width: Math.min(preview.maxWidth, implicitWidth / 2 || preview.maxWidth)
-                height: Math.min(320, implicitHeight > 0 ? (implicitHeight / 2) * width / Math.max(1, implicitWidth / 2) : 320)
+                width: preview.imageWidth
+                height: preview.imageHeight
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: Qt.openUrlExternally(preview.url) }
             }
         }
         Component {
-            id: animated
+            id: animatedImage
             AnimatedImage {
                 source: preview.info.image
                 asynchronous: true
                 cache: true
                 fillMode: Image.PreserveAspectFit
-                width: Math.min(preview.maxWidth, implicitWidth || preview.maxWidth)
-                height: Math.min(320, implicitHeight > 0 ? implicitHeight * width / Math.max(1, implicitWidth) : 320)
+                width: preview.imageWidth
+                height: preview.imageHeight
                 playing: hoverImg.hovered || frameCount < 2
                 HoverHandler { id: hoverImg; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: Qt.openUrlExternally(preview.url) }

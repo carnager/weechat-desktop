@@ -29,7 +29,9 @@ quick switcher, and a keyboard-first workflow that still works well with a mouse
   mIRC/WeeChat colours, clickable links and `#channels`, a "NEW" divider at the first unread
   line, day separators, per-message actions on hover (reply, quote, copy, nick menu) and
   in-buffer search (Ctrl+F).
-- **Previews:** OpenGraph cards for links, plus inline images and GIFs (GIFs play on hover).
+- **Previews (opt-in):** OpenGraph cards for links, plus inline images and GIFs (GIFs play on
+  hover). Off by default, since fetching tells the site your IP address; turn them on in
+  Settings. Results are cached for a week, with image sizes, so previews don't shift the chat.
 - **Unread state comes from WeeChat's hotlist.** Reading a buffer here marks it read in WeeChat
   too. There's also a mentions panel (Ctrl+Shift+M) collecting highlights from every buffer.
 - **Notifications:** freedesktop notifications for highlights and private messages; clicking one

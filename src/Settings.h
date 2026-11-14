@@ -45,8 +45,8 @@ class Settings : public QObject
 
     // Messages
     WD_SETTING(bool, emojiShortcodes, EmojiShortcodes, true)
-    WD_SETTING(bool, linkPreviews, LinkPreviews, true)
-    WD_SETTING(bool, inlineImages, InlineImages, true)
+    WD_SETTING(bool, linkPreviews, LinkPreviews, false) // off by default: fetching tells sites your IP
+    WD_SETTING(bool, inlineImages, InlineImages, false)
 
     // Behaviour
     WD_SETTING(bool, notifications, Notifications, true)

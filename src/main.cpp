@@ -209,6 +209,8 @@ int main(int argc, char *argv[])
     auto *notifier = new Notifier(&app);
     auto *session = new Session(settings, notifier, &app);
     auto *previews = new LinkPreviews(&app);
+    previews->setCacheFile(QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                           + QStringLiteral("/previews.json"));
     auto *platform = new Platform(notifier, &app);
     QObject::connect(notifier, &Notifier::toggleWindowRequested, platform, &Platform::toggleWindowRequested);
     QObject::connect(notifier, &Notifier::quitRequested, &app, &QCoreApplication::quit);

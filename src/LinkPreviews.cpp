@@ -1,6 +1,13 @@
 #include "LinkPreviews.h"
 
+#include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkReply>
+#include <QSaveFile>
 #include <QRegularExpression>
 #include <QTextDocumentFragment>
 #include <QUrl>
@@ -8,6 +15,7 @@
 namespace {
 constexpr qint64 kMaxBytes = 768 * 1024;
 constexpr int kMaxCache = 500;
+constexpr qint64 kMaxAgeSecs = 7 * 24 * 3600; // a week; titles and images rarely change
 
 QString decodeEntities(const QString &s)
 {
@@ -20,6 +28,66 @@ LinkPreviews::LinkPreviews(QObject *parent)
 {
     m_nam.setRedirectPolicy(QNetworkRequest::NoLessSafeRedirectPolicy);
     m_nam.setTransferTimeout(10'000);
+    m_saveTimer.setSingleShot(true);
+    m_saveTimer.setInterval(2000);
+    connect(&m_saveTimer, &QTimer::timeout, this, &LinkPreviews::save);
+}
+
+LinkPreviews::~LinkPreviews()
+{
+    if (m_saveTimer.isActive()) // changes not written yet
+        save();
+}
+
+void LinkPreviews::setCacheFile(const QString &path)
+{
+    m_cacheFile = path;
+    load();
+}
+
+void LinkPreviews::load()
+{
+    QFile f(m_cacheFile);
+    if (m_cacheFile.isEmpty() || !f.open(QIODevice::ReadOnly))
+        return;
+    const QJsonObject all = QJsonDocument::fromJson(f.readAll()).object();
+    const qint64 now = QDateTime::currentSecsSinceEpoch();
+    for (auto it = all.begin(); it != all.end(); ++it) {
+        QVariantMap e = it.value().toObject().toVariantMap();
+        if (now - e.value(QStringLiteral("t")).toLongLong() > kMaxAgeSecs)
+            continue;
+        m_cache.insert(it.key(), e);
+    }
+}
+
+void LinkPreviews::save()
+{
+    if (m_cacheFile.isEmpty())
+        return;
+    QJsonObject all;
+    for (auto it = m_cache.cbegin(); it != m_cache.cend(); ++it) {
+        const QString status = it->value(QStringLiteral("status")).toString();
+        if (status == u"ready" || status == u"none")
+            all.insert(it.key(), QJsonObject::fromVariantMap(*it));
+    }
+    QDir().mkpath(QFileInfo(m_cacheFile).path());
+    QSaveFile f(m_cacheFile);
+    if (f.open(QIODevice::WriteOnly)) {
+        f.write(QJsonDocument(all).toJson(QJsonDocument::Compact));
+        f.commit();
+    }
+}
+
+void LinkPreviews::rememberSize(const QString &url, int width, int height)
+{
+    auto it = m_cache.find(url);
+    if (it == m_cache.end() || width <= 0 || height <= 0)
+        return;
+    if (it->value(QStringLiteral("iw")).toInt() == width && it->value(QStringLiteral("ih")).toInt() == height)
+        return;
+    it->insert(QStringLiteral("iw"), width);
+    it->insert(QStringLiteral("ih"), height);
+    m_saveTimer.start();
 }
 
 bool LinkPreviews::isImageUrl(const QString &url)
@@ -84,7 +152,7 @@ QVariantMap LinkPreviews::parseHtml(const QByteArray &bytes, const QString &url)
             {QStringLiteral("site"), site.isEmpty() ? QUrl(url).host() : site}};
 }
 
-QVariantMap LinkPreviews::get(const QString &url)
+QVariantMap LinkPreviews::get(const QString &url, bool fetchPages)
 {
     if (const auto it = m_cache.constFind(url); it != m_cache.constEnd())
         return *it;
@@ -93,12 +161,13 @@ QVariantMap LinkPreviews::get(const QString &url)
         QVariantMap r{{QStringLiteral("status"), QStringLiteral("ready")},
                       {QStringLiteral("type"), QStringLiteral("image")},
                       {QStringLiteral("url"), url},
-                      {QStringLiteral("image"), url}};
+                      {QStringLiteral("image"), url},
+                      {QStringLiteral("t"), QDateTime::currentSecsSinceEpoch()}};
         m_cache.insert(url, r);
         return r;
     }
     const QUrl u(url);
-    if (!u.isValid() || (u.scheme() != u"http" && u.scheme() != u"https") || m_inFlight > 8)
+    if (!fetchPages || !u.isValid() || (u.scheme() != u"http" && u.scheme() != u"https") || m_inFlight > 8)
         return {{QStringLiteral("status"), QStringLiteral("none")}};
 
     if (m_cache.size() > kMaxCache)
@@ -142,6 +211,8 @@ QVariantMap LinkPreviews::get(const QString &url)
 
 void LinkPreviews::finish(const QString &url, QVariantMap result)
 {
+    result.insert(QStringLiteral("t"), QDateTime::currentSecsSinceEpoch());
     m_cache.insert(url, result);
+    m_saveTimer.start();
     emit updated(url);
 }

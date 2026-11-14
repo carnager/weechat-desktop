@@ -270,7 +270,7 @@ Popup {
                         }
                         AppSwitch {
                             text: qsTr("Inline images")
-                            description: qsTr("Shows linked images and GIFs (GIFs play on hover).")
+                            description: qsTr("Shows links to images and GIFs inline (GIFs play on hover). The image's host sees your IP address.")
                             checked: AppSettings.inlineImages
                             onToggled: AppSettings.inlineImages = checked
                         }
