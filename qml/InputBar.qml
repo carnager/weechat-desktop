@@ -19,8 +19,11 @@ Item {
     property var previousBuffer: null
     property bool settingText: false
     property var ctx: ({ kind: "" })
+    /// Several lines are about to go out as separate messages: Enter again to send, Esc to cancel.
+    property bool confirming: false
+    readonly property var lines: area.text.split("\n").filter(l => l.trim().length > 0)
 
-    implicitHeight: box.implicitHeight + hint.height + 22
+    implicitHeight: box.implicitHeight + (confirming ? confirmRow.implicitHeight + 6 : hint.shown ? hint.implicitHeight : 0) + 22
 
     function focusInput() { area.forceActiveFocus() }
     function insert(t) {
@@ -35,7 +38,14 @@ Item {
         settingText = false
     }
 
+    function joinLines() {
+        setText(lines.map(l => l.trim()).join(" "))
+        confirming = false
+        area.forceActiveFocus()
+    }
+
     onBufferChanged: {
+        confirming = false
         if (previousBuffer)
             previousBuffer.draft = area.text
         setText(buffer ? buffer.draft : "")
@@ -48,6 +58,12 @@ Item {
         const t = area.text
         if (t.trim().length === 0)
             return
+        // Like WeeChat's paste confirmation: a multi-line paste shouldn't flood a channel by accident.
+        if (lines.length > 1 && !confirming) {
+            confirming = true
+            return
+        }
+        confirming = false
         if (Relay.sendInput(t)) {
             bar.sent()
             setText("")
@@ -141,6 +157,7 @@ Item {
                     persistentSelection: true
 
                     onTextChanged: {
+                        bar.confirming = false
                         if (!bar.settingText)
                             Relay.completer.resetTab()
                         bar.updateSuggestions()
@@ -192,7 +209,11 @@ Item {
                         case Qt.Key_PageDown: bar.pageScroll(1); e.accepted = true; break
                         case Qt.Key_Home: if (ctrl && area.text.length === 0) { bar.jumpEdge(false); e.accepted = true } break
                         case Qt.Key_End: if (ctrl && area.text.length === 0) { bar.jumpEdge(true); e.accepted = true } break
-                        case Qt.Key_Escape: bar.escapePressed(); e.accepted = true; break
+                        case Qt.Key_Escape:
+                            if (bar.confirming) bar.confirming = false
+                            else bar.escapePressed()
+                            e.accepted = true
+                            break
                         }
                     }
                 }
@@ -243,16 +264,38 @@ Item {
         anchors.top: box.bottom
         anchors.leftMargin: 14
         anchors.topMargin: 3
-        height: visible ? implicitHeight : 0
-        visible: text.length > 0
+        readonly property bool shown: !bar.confirming && text.length > 0
+        visible: shown
         text: {
-            const n = area.text.split("\n").filter(l => l.length > 0).length
-            if (n > 1) return qsTr("Sends %1 separate lines").arg(n)
+            if (bar.lines.length > 1) return qsTr("Sends %1 separate lines").arg(bar.lines.length)
             if (area.text.startsWith("/") && !area.text.startsWith("//")) return qsTr("Command — runs in WeeChat")
             return ""
         }
         color: Theme.faint
         font.pixelSize: Theme.tiny
+    }
+
+    // The multi-line confirmation, in place of the hint.
+    RowLayout {
+        id: confirmRow
+        anchors.left: box.left
+        anchors.right: box.right
+        anchors.top: box.bottom
+        anchors.leftMargin: 10
+        anchors.topMargin: 4
+        visible: bar.confirming
+        spacing: 8
+        Icon { name: "info"; size: 15; color: Theme.warn }
+        Text {
+            Layout.fillWidth: true
+            text: qsTr("Send %1 lines as %1 separate messages?").arg(bar.lines.length)
+            color: Theme.text
+            font.pixelSize: Theme.small
+            elide: Text.ElideRight
+        }
+        AppButton { text: qsTr("Join into one line"); implicitHeight: 28; onClicked: bar.joinLines() }
+        AppButton { text: qsTr("Cancel (Esc)"); implicitHeight: 28; onClicked: { bar.confirming = false; area.forceActiveFocus() } }
+        AppButton { primary: true; text: qsTr("Send (Enter)"); implicitHeight: 28; onClicked: bar.send() }
     }
 
     CompletionPopup {

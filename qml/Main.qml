@@ -46,6 +46,8 @@ ApplicationWindow {
     // Development: put the UI into a given state for screenshots (--screenshot-action).
     property string devAction
     Timer { id: sendTimer; interval: 400; onTriggered: chat.sendInput() }
+    Timer { id: pasteTimer; interval: 300; onTriggered: chat.sendInput() } // Enter once: should ask
+    Timer { id: pasteTimer2; interval: 700; onTriggered: chat.sendInput() } // and again: sends
     // "select": drag from one message to another, a few lines down, like a person would.
     Timer {
         id: selectTimer
@@ -81,6 +83,8 @@ ApplicationWindow {
             else if (a === "select") selectTimer.start()
             else if (a.startsWith("whois:")) whoisWindow.showFor(a.substring(6))
             else if (a === "nickmenu") nickMenu.popupFor("alice", null)
+            else if (a === "pastesend") { chat.insertText("first pasted line\nsecond pasted line\nthird pasted line"); pasteTimer.start(); pasteTimer2.start() }
+            else if (a === "paste") { chat.insertText("first pasted line\nsecond pasted line\nthird pasted line"); pasteTimer.start() }
             else if (a === "scrollsend") { chat.scrollBy(-3000); chat.insertText("sent from the input bar"); sendTimer.start() }
             else if (a === "send") { Relay.sendInput("trying the new client :tada: works great"); Relay.sendInput("/me waves") }
         }
