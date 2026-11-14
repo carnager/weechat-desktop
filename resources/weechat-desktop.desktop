@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=WeeChat Desktop
+GenericName=Chat Client
+Comment=Desktop client for WeeChat's relay
+Exec=weechat-desktop
+Icon=weechat-desktop
+Terminal=false
+Categories=Network;Chat;IRCClient;Qt;
+Keywords=IRC;WeeChat;Chat;Relay;
+StartupWMClass=weechat-desktop
+SingleMainWindow=true
