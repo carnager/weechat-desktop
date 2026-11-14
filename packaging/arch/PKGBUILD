@@ -1,6 +1,7 @@
-# Builds the package from this checkout (no download):
+# Builds the package from a local checkout (no download): this one, or the one named by
+# WEECHAT_DESKTOP_SRC (for building from a copy of this folder elsewhere).
 #   cd packaging/arch && makepkg -si
-pkgname=weechat-desktop
+pkgname=weechat-desktop-git
 pkgver=0.1.0
 pkgrel=1
 pkgdesc="A Qt 6 desktop client for WeeChat's relay api"
@@ -9,11 +10,13 @@ url="https://weechat.org/"
 license=(GPL-3.0-or-later)
 depends=(qt6-base qt6-declarative qt6-websockets qt6-svg hicolor-icon-theme)
 makedepends=(cmake ninja git)
+provides=(weechat-desktop)
+conflicts=(weechat-desktop)
 optdepends=('qt6-imageformats: WebP and other formats in inline images'
             'noto-fonts-emoji: colour emoji')
 source=()
 
-_srcdir() { realpath "$startdir/../.."; }
+_srcdir() { realpath "${WEECHAT_DESKTOP_SRC:-$startdir/../..}"; }
 
 pkgver() {
   cd "$(_srcdir)"
