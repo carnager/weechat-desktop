@@ -1,12 +1,15 @@
-# Builds the package from a local checkout (no download): this one, or the one named by
-# WEECHAT_DESKTOP_SRC (for building from a copy of this folder elsewhere).
+# Maintainer: Rasi <rasi@xssn.at>
+
+# Built from the git repository, so the version follows the commits.
 #   cd packaging/arch && makepkg -si
+# To build a local checkout instead (its committed state), point WEECHAT_DESKTOP_SRC at it:
+#   WEECHAT_DESKTOP_SRC=file://$PWD/../.. makepkg -si
 pkgname=weechat-desktop-git
 pkgver=0.1.0
 pkgrel=1
 pkgdesc="A Qt 6 desktop client for WeeChat's relay api"
 arch=(x86_64 aarch64)
-url="https://weechat.org/"
+url="https://github.com/carnager/weechat-desktop"
 license=(GPL-3.0-or-later)
 depends=(qt6-base qt6-declarative qt6-websockets qt6-svg hicolor-icon-theme)
 makedepends=(cmake ninja git)
@@ -14,19 +17,18 @@ provides=(weechat-desktop)
 conflicts=(weechat-desktop)
 optdepends=('qt6-imageformats: WebP and other formats in inline images'
             'noto-fonts-emoji: colour emoji')
-source=()
-
-_srcdir() { realpath "${WEECHAT_DESKTOP_SRC:-$startdir/../..}"; }
+source=("weechat-desktop::git+${WEECHAT_DESKTOP_SRC:-https://github.com/carnager/weechat-desktop.git}")
+sha256sums=('SKIP')
 
 pkgver() {
-  cd "$(_srcdir)"
+  cd weechat-desktop
   local base
   base=$(sed -n 's/^project(weechat-desktop VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
   printf '%s.r%s.g%s' "$base" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
 }
 
 build() {
-  cmake -S "$(_srcdir)" -B build -G Ninja \
+  cmake -S weechat-desktop -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DWD_DEVTOOLS=OFF
@@ -39,5 +41,5 @@ check() {
 
 package() {
   DESTDIR="$pkgdir" cmake --install build
-  install -Dm644 "$(_srcdir)/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 weechat-desktop/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
 }
