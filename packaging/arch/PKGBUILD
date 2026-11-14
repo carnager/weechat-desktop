@@ -1,0 +1,40 @@
+# Builds the package from this checkout (no download):
+#   cd packaging/arch && makepkg -si
+pkgname=weechat-desktop
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="A Qt 6 desktop client for WeeChat's relay api"
+arch=(x86_64 aarch64)
+url="https://weechat.org/"
+license=(GPL-3.0-or-later)
+depends=(qt6-base qt6-declarative qt6-websockets qt6-svg hicolor-icon-theme)
+makedepends=(cmake ninja git)
+optdepends=('qt6-imageformats: WebP and other formats in inline images'
+            'noto-fonts-emoji: colour emoji')
+source=()
+
+_srcdir() { realpath "$startdir/../.."; }
+
+pkgver() {
+  cd "$(_srcdir)"
+  local base
+  base=$(sed -n 's/^project(weechat-desktop VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+  printf '%s.r%s.g%s' "$base" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  cmake -S "$(_srcdir)" -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DWD_DEVTOOLS=OFF
+  cmake --build build
+}
+
+check() {
+  ctest --test-dir build --output-on-failure
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  install -Dm644 "$(_srcdir)/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

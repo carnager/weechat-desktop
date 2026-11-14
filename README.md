@@ -60,6 +60,8 @@ quick switcher, and a keyboard-first workflow that still works well with a mouse
 
 On Arch Linux: `pacman -S qt6-base qt6-declarative qt6-websockets qt6-svg qt6-imageformats noto-fonts-emoji`.
 
+To install as a package on Arch: `cd packaging/arch && makepkg -si` (builds this checkout).
+
 ## Building
 
 ```sh
