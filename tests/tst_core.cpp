@@ -1,4 +1,5 @@
 #include "Buffer.h"
+#include "Completer.h"
 #include "EmojiStore.h"
 #include "Formatter.h"
 #include "LineModel.h"
@@ -28,6 +29,23 @@ class CoreTest : public QObject
 {
     Q_OBJECT
 private slots:
+    void completionContextAfterNickCommands()
+    {
+        Completer c(nullptr);
+        auto kind = [&](const QString &text) {
+            return c.context(text, int(text.size())).value(QStringLiteral("kind")).toString();
+        };
+        QCOMPARE(kind(QStringLiteral("/query ")), QStringLiteral("target"));   // before typing anything
+        QCOMPARE(kind(QStringLiteral("/msg al")), QStringLiteral("target"));
+        QCOMPARE(kind(QStringLiteral("/NOTICE al")), QStringLiteral("target"));
+        QCOMPARE(kind(QStringLiteral("/kick   bo")), QStringLiteral("target"));
+        QCOMPARE(kind(QStringLiteral("/msg #chan")), QStringLiteral("channel")); // channels stay channels
+        QCOMPARE(kind(QStringLiteral("/msg alice hel")), QStringLiteral("nick")); // only the first argument
+        QCOMPARE(kind(QStringLiteral("/join ")), QString());                    // not a nick command
+        QCOMPARE(kind(QStringLiteral("/que")), QStringLiteral("command"));
+        QCOMPARE(c.context(QStringLiteral("/query al"), 9).value(QStringLiteral("start")).toInt(), 7);
+    }
+
     void whoisParsing()
     {
         const QStringList t311{QStringLiteral("irc_311"), QStringLiteral("irc_numeric"), QStringLiteral("nick_mini.irc")};

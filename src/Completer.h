@@ -15,7 +15,8 @@ public:
     explicit Completer(Session *session);
 
     /// What's being typed at [cursor]: {kind, start, end, word}. kind is "", "nick", "mention",
-    /// "command", "channel" or "emoji". Popups open for everything except plain "nick".
+    /// "command", "channel", "emoji" or "target" (the nick after /query, /msg, /kick, …, even
+    /// before anything is typed). Popups open for everything except plain "nick".
     Q_INVOKABLE QVariantMap context(const QString &text, int cursor) const;
     /// Popup entries: {label, insert, detail, icon, color}.
     Q_INVOKABLE QVariantList suggestions(const QString &kind, const QString &word, int limit = 8) const;
@@ -30,8 +31,14 @@ public:
     struct Command { const char *name; const char *help; };
     static const QList<Command> &commands();
 
+    /// Commands whose first argument is a nick.
+    static bool takesNick(const QString &command);
+
 private:
     QStringList nickCandidates(const QString &prefix) const;
+    /// For "target": {nick, detail} from this channel, open queries and other channels on the
+    /// same server, in that order.
+    QList<QPair<QString, QString>> targetCandidates(const QString &prefix) const;
 
     Session *m_session;
     struct TabState {

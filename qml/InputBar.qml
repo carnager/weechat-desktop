@@ -76,7 +76,7 @@ Item {
             return
         ctx = Relay.completer.context(area.text, area.cursorPosition)
         const k = ctx.kind
-        if (k === "emoji" || k === "command" || k === "mention" || k === "channel") {
+        if (k === "emoji" || k === "command" || k === "mention" || k === "channel" || k === "target") {
             const items = Relay.completer.suggestions(k, ctx.word, 8)
             if (items.length > 0) {
                 popup.items = items

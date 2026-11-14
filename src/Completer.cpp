@@ -1,5 +1,8 @@
 #include "Completer.h"
 
+#include <QRegularExpression>
+#include <QSet>
+
 #include "Buffer.h"
 #include "EmojiStore.h"
 #include "Formatter.h"
@@ -71,6 +74,18 @@ static bool isWordChar(QChar c)
     return !c.isSpace();
 }
 
+bool Completer::takesNick(const QString &command)
+{
+    static const QSet<QString> commands{
+        QStringLiteral("query"), QStringLiteral("q"), QStringLiteral("msg"), QStringLiteral("m"),
+        QStringLiteral("notice"), QStringLiteral("whois"), QStringLiteral("wii"), QStringLiteral("whowas"),
+        QStringLiteral("kick"), QStringLiteral("kickban"), QStringLiteral("ban"), QStringLiteral("unban"),
+        QStringLiteral("op"), QStringLiteral("deop"), QStringLiteral("voice"), QStringLiteral("devoice"),
+        QStringLiteral("halfop"), QStringLiteral("dehalfop"), QStringLiteral("quiet"), QStringLiteral("unquiet"),
+        QStringLiteral("invite"), QStringLiteral("ctcp"), QStringLiteral("ignore"), QStringLiteral("dcc")};
+    return commands.contains(command.toLower());
+}
+
 QVariantMap Completer::context(const QString &text, int cursor) const
 {
     cursor = std::clamp(cursor, 0, int(text.size()));
@@ -78,8 +93,13 @@ QVariantMap Completer::context(const QString &text, int cursor) const
     while (start > 0 && isWordChar(text.at(start - 1)))
         --start;
     const QString word = text.mid(start, cursor - start);
+    // "/query <here>": the first argument of a command that takes a nick.
+    static const QRegularExpression commandHead(QStringLiteral("^/(\\w+)\\s+$"));
+    const auto head = commandHead.match(text.left(start));
     QString kind;
-    if (word.isEmpty()) {
+    if (head.hasMatch() && takesNick(head.captured(1)) && !word.startsWith(u'#')) {
+        kind = QStringLiteral("target");
+    } else if (word.isEmpty()) {
         kind = QString();
     } else if (start == 0 && word.startsWith(u'/') && !word.startsWith(u"//")) {
         kind = QStringLiteral("command");
@@ -112,6 +132,35 @@ QStringList Completer::nickCandidates(const QString &prefix) const
         if (!other.isEmpty() && other.startsWith(prefix, Qt::CaseInsensitive) && !out.contains(other))
             out.prepend(other);
     }
+    return out;
+}
+
+QList<QPair<QString, QString>> Completer::targetCandidates(const QString &prefix) const
+{
+    QList<QPair<QString, QString>> out;
+    Buffer *cur = m_session ? m_session->current() : nullptr;
+    if (!cur)
+        return out;
+    const QString server = cur->server();
+    const QString own = cur->ownNick();
+    QSet<QString> seen{own.toLower()};
+    auto add = [&](const QString &nick, const QString &detail) {
+        if (nick.isEmpty() || !nick.startsWith(prefix, Qt::CaseInsensitive) || seen.contains(nick.toLower()))
+            return;
+        seen.insert(nick.toLower());
+        out << qMakePair(nick, detail);
+    };
+    // Here first (people who spoke recently lead), then queries, then the server's other channels.
+    for (const QString &n : nickCandidates(prefix))
+        add(n, cur->kind() == Buffer::Channel ? cur->nicks()->prefixOf(n) : QString());
+    const auto &all = m_session->buffers()->buffers();
+    for (Buffer *b : all)
+        if (b->kind() == Buffer::Private && b->server() == server)
+            add(b->localVar(QStringLiteral("channel")), tr("query"));
+    for (Buffer *b : all)
+        if (b != cur && b->kind() == Buffer::Channel && b->server() == server)
+            for (const QString &n : b->nicks()->complete(prefix, own))
+                add(n, b->displayName());
     return out;
 }
 
@@ -148,6 +197,15 @@ QVariantList Completer::suggestions(const QString &kind, const QString &word, in
                                {QStringLiteral("insert"), n},
                                {QStringLiteral("color"), Formatter::nickColor(n, dark)},
                                {QStringLiteral("detail"), m_session->current()->nicks()->prefixOf(n)}};
+            if (out.size() >= limit)
+                break;
+        }
+    } else if (kind == u"target") {
+        for (const auto &[nick, detail] : targetCandidates(word)) {
+            out << QVariantMap{{QStringLiteral("label"), nick},
+                               {QStringLiteral("insert"), nick},
+                               {QStringLiteral("color"), Formatter::nickColor(nick, dark)},
+                               {QStringLiteral("detail"), detail}};
             if (out.size() >= limit)
                 break;
         }
@@ -194,6 +252,9 @@ QVariantMap Completer::tab(const QString &text, int cursor, bool backwards)
         } else if (kind == u"emoji") {
             for (const auto &s : suggestions(kind, word, 20))
                 m_tab.candidates << s.toMap().value(QStringLiteral("insert")).toString();
+        } else if (kind == u"target") {
+            for (const auto &c : targetCandidates(word))
+                m_tab.candidates << c.first;
         } else if (kind == u"nick" || kind == u"mention") {
             m_tab.candidates = nickCandidates(kind == u"mention" ? word.mid(1) : word);
             m_tab.lineStart = start == 0 && kind == u"nick";

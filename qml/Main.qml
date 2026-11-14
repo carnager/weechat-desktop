@@ -93,6 +93,7 @@ ApplicationWindow {
             else if (a === "scroll") { const p = chat.mapToItem(null, chat.width / 2, chat.height / 2); for (let i = 0; i < 6; ++i) Dev.wheel(p.x, p.y, 120); scrollCheck.start() }
             else if (a === "select") selectTimer.start()
             else if (a.startsWith("whois:")) whoisWindow.showFor(a.substring(6))
+            else if (a.startsWith("type:")) chat.insertText(a.substring(5))
             else if (a === "nickmenu") nickMenu.popupFor("alice", null)
             else if (a === "paste") { pasteLines(); pasteTimer.start() }
             else if (a === "pastesend") { pasteLines(); pasteTimer.start(); pasteTimer2.start() }

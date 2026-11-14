@@ -21,7 +21,7 @@ quick switcher, and a keyboard-first workflow that still works well with a mouse
 
 - **Keyboard first:** Ctrl+K quick switcher (fuzzy, unread-aware; type `#chan` to join),
   Alt+1…0, Alt+↑/↓, Alt+A for next unread (highlights first), Tab nick completion that cycles
-  like WeeChat's, input history, PageUp/PageDown, and F1 for the full list.
+  like WeeChat's, a nick picker after `/query`, `/msg`, `/notice`, `/whois`, `/kick` and friends, input history, PageUp/PageDown, and F1 for the full list.
 - **Emoji:** `:shortcode` suggestions as you type, a searchable picker (Ctrl+E) with recently
   used emoji, `:tada:` → 🎉 in sent and received messages, and big emoji for emoji-only messages.
   Emoji the installed font can't draw are hidden.
