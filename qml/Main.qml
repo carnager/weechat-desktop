@@ -43,26 +43,37 @@ ApplicationWindow {
     }
     readonly property bool narrow: width < 900
 
-    // Development: put the UI into a given state for screenshots (--screenshot-action).
+    // ---- Development builds only (src/DevTools.h): --screenshot-action sets up a UI state, and
+    // some actions check the result, printing "CHECK <name> ok|FAIL" for tests/ui_checks.py.
     property string devAction
-    Timer { id: sendTimer; interval: 400; onTriggered: chat.sendInput() }
-    Timer { id: pasteTimer; interval: 300; onTriggered: chat.sendInput() } // Enter once: should ask
-    Timer { id: pasteTimer2; interval: 700; onTriggered: chat.sendInput() } // and again: sends
-    // "select": drag from one message to another, a few lines down, like a person would.
+    function check(name, ok) { console.log("CHECK", name, ok ? "ok" : "FAIL") }
+    function pasteLines() { chat.insertText("first pasted line\nsecond pasted line\nthird pasted line") }
+    Timer { id: sendTimer; interval: 400; onTriggered: { chat.sendInput(); Qt.callLater(() => win.check("scrollsend", chat.atBottom)) } }
+    Timer { id: pasteTimer; interval: 300; onTriggered: { chat.sendInput(); if (win.devAction === "paste") win.check("paste", chat.inputConfirming && !chat.inputEmpty) } }
+    Timer { id: pasteTimer2; interval: 700; onTriggered: { chat.sendInput(); win.check("pastesend", chat.inputEmpty && !chat.inputConfirming) } }
+    Timer { id: scrollCheck; interval: 300; onTriggered: win.check("scroll", !chat.atBottom) }
+    Timer { id: queryTimer; interval: 1200; onTriggered: Relay.sendInput("hi alice, testing the desktop client :wave:") }
+    // "select": drag from blank space right of a message, down and into the left gutter.
     Timer {
         id: selectTimer
         interval: 30
         repeat: true
         property int step: 0
         onTriggered: {
-            const x0 = 900, y0 = 282, x1 = 270, y1 = 577
-            if (step === 0) Platform.devMouse(0, x0, y0)
-            else if (step <= 10) Platform.devMouse(1, x0 + (x1 - x0) * step / 10, y0 + (y1 - y0) * step / 10)
-            else { Platform.devMouse(2, x1, y1); stop(); console.log("selected:", JSON.stringify(chat.selectedText())) }
+            const from = chat.mapToItem(null, chat.width - 120, chat.height * 0.35)
+            const to = chat.mapToItem(null, 20, chat.height * 0.7)
+            if (step === 0) Dev.mouse(0, from.x, from.y)
+            else if (step <= 10) Dev.mouse(1, from.x + (to.x - from.x) * step / 10, from.y + (to.y - from.y) * step / 10)
+            else {
+                Dev.mouse(2, to.x, to.y)
+                stop()
+                const text = chat.selectedText()
+                console.log("selected:", JSON.stringify(text))
+                win.check("select", text.split("\n").length >= 3)
+            }
             ++step
         }
     }
-    Timer { id: queryTimer; interval: 1200; onTriggered: Relay.sendInput("hi alice, testing the desktop client :wave:") }
     Timer {
         running: win.devAction.length > 0
         interval: 1200
@@ -79,12 +90,12 @@ ApplicationWindow {
             else if (a === "nicks") chat.insertText("@a")
             else if (a === "unread") Relay.openNextUnread()
             else if (a === "query") { Relay.openQuery("alice"); queryTimer.start() }
-            else if (a === "scroll") { for (let i = 0; i < 6; ++i) Platform.devWheel(800, 400, 120) }
+            else if (a === "scroll") { const p = chat.mapToItem(null, chat.width / 2, chat.height / 2); for (let i = 0; i < 6; ++i) Dev.wheel(p.x, p.y, 120); scrollCheck.start() }
             else if (a === "select") selectTimer.start()
             else if (a.startsWith("whois:")) whoisWindow.showFor(a.substring(6))
             else if (a === "nickmenu") nickMenu.popupFor("alice", null)
-            else if (a === "pastesend") { chat.insertText("first pasted line\nsecond pasted line\nthird pasted line"); pasteTimer.start(); pasteTimer2.start() }
-            else if (a === "paste") { chat.insertText("first pasted line\nsecond pasted line\nthird pasted line"); pasteTimer.start() }
+            else if (a === "paste") { pasteLines(); pasteTimer.start() }
+            else if (a === "pastesend") { pasteLines(); pasteTimer.start(); pasteTimer2.start() }
             else if (a === "scrollsend") { chat.scrollBy(-3000); chat.insertText("sent from the input bar"); sendTimer.start() }
             else if (a === "send") { Relay.sendInput("trying the new client :tada: works great"); Relay.sendInput("/me waves") }
         }

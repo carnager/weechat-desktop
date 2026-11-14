@@ -65,6 +65,13 @@ def nick_prefix(nick, mode=""):
     return f"{ESC}[{color}m{mode}{nick}{ESC}[0m"
 
 
+LONG = [
+    "Als nach dem Erdbeben das Telefonnetz zusammenbrach, funktionierten Nachrichten über das Internet weiter, und genau deshalb hat sich die App damals so schnell verbreitet.",
+    "I think the real reason the relay api is nicer is that it is just JSON over a WebSocket, so any language with a websocket library can talk to WeeChat without a custom parser.",
+    "ach Rasi ✂️sSchere✂️ wenn das model chillt, wird der vram auch freigemacht, aber nur wenn man es explizit entlädt oder der timeout abläuft",
+]
+
+
 def make_line(nick, text, offset=0.0, kind="privmsg", highlight=False, self_msg=False):
     tags = []
     prefix = nick_prefix(nick)
@@ -173,6 +180,14 @@ def build_world():
                     b.lines.append(make_line(OWN_NICK, rnd.choice(CHATTER), t, self_msg=True))
                 else:
                     b.lines.append(make_line(nick, rnd.choice(CHATTER), t))
+    # A channel of long, wrapping messages (the UI checks use it: wrapped rows once sent the
+    # compact layout into an endless re-layout).
+    essays = Buffer("irc.libera.#essays", "#essays", "channel", "libera", 10, "Long messages", NICKS[:8])
+    t = -3600 * 3.0
+    for i in range(60):
+        t += rnd.uniform(20, 120)
+        essays.lines.append(make_line(rnd.choice(essays.nicks), " ".join([rnd.choice(LONG)] * rnd.randint(1, 3)), t))
+    bufs.append(essays)
     return bufs
 
 

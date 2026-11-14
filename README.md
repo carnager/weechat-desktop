@@ -66,7 +66,7 @@ On Arch Linux: `pacman -S qt6-base qt6-declarative qt6-websockets qt6-svg qt6-im
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ./build/weechat-desktop
-ctest --test-dir build          # unit tests (protocol, formatting, line model, emoji)
+ctest --test-dir build          # unit tests, plus headless UI checks in development builds
 sudo cmake --install build      # binary, .desktop file and icon
 ```
 
@@ -92,6 +92,12 @@ python3 tools/mini_ircd.py --port 6699
 /server add mini 127.0.0.1/6699 -notls -autojoin=#weechat,#archlinux,#qt
 /connect mini
 ```
+
+Development builds (any build type but Release, or `-DWD_DEVTOOLS=ON`) include hooks for
+headless testing: `--screenshot`, `--screenshot-action` and `WD_FRAMES` below.
+`tests/ui_checks.py` (run by `ctest`) uses them to drive the app against the mock relay: drag
+selection, wheel scrolling, the multi-line paste prompt, and that long wrapping lines don't send
+the layout into a loop.
 
 `WD_DEBUG_RELAY=1` logs every relay frame and connection error to stderr. `WD_FRAMES=<dir>` saves
 a frame every 100 ms for the first 4 seconds, to check that startup doesn't visibly re-layout. For headless screenshots:

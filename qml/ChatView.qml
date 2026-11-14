@@ -14,6 +14,8 @@ Rectangle {
 
     readonly property var buffer: Relay.current
     readonly property bool inputEmpty: input.text.length === 0
+    readonly property bool inputConfirming: input.confirming
+    readonly property bool atBottom: list.atYEnd
     property var flashId: null
     property var pendingScrollId: null
     property bool stickToBottom: true

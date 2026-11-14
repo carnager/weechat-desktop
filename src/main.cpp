@@ -9,6 +9,9 @@
 #include "Notifier.h"
 #include "Session.h"
 #include "Settings.h"
+#ifdef WD_DEVTOOLS
+#include "DevTools.h"
+#endif
 
 #include <QApplication>
 #include <QClipboard>
@@ -25,12 +28,9 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QTimer>
-#include <QMouseEvent>
 #include <QMenu>
 #include <QCursor>
 #include <QQuickItem>
-#include <QWheelEvent>
-#include <algorithm>
 #include <qqml.h>
 
 /// Small platform helpers QML has no API for.
@@ -93,39 +93,12 @@ public:
         menu->popup(global);
     }
 
-    // Development only (--screenshot-action): real input events, to test scrolling and selection.
-    Q_INVOKABLE void devMouse(int type, qreal x, qreal y)
-    {
-        static const QEvent::Type types[] = {QEvent::MouseButtonPress, QEvent::MouseMove, QEvent::MouseButtonRelease};
-        if (QWindow *w = mainWindow()) {
-            const Qt::MouseButtons held = type == 2 ? Qt::NoButton : Qt::LeftButton;
-            QMouseEvent e(types[std::clamp(type, 0, 2)], QPointF(x, y), w->mapToGlobal(QPointF(x, y)),
-                          type == 1 ? Qt::NoButton : Qt::LeftButton, held, Qt::NoModifier);
-            QCoreApplication::sendEvent(w, &e);
-        }
-    }
-    Q_INVOKABLE void devWheel(qreal x, qreal y, int angleDeltaY)
-    {
-        if (QWindow *w = mainWindow()) {
-            QWheelEvent e(QPointF(x, y), w->mapToGlobal(QPointF(x, y)), QPoint(), QPoint(0, angleDeltaY),
-                          Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
-            QCoreApplication::sendEvent(w, &e);
-        }
-    }
-
 signals:
     void menuTriggered(const QString &tag, const QString &id);
     void toggleWindowRequested();
     void raiseRequested();
 
 private:
-    static QWindow *mainWindow()
-    {
-        for (QWindow *w : QGuiApplication::topLevelWindows())
-            if (qobject_cast<QQuickWindow *>(w) && w->isVisible())
-                return w;
-        return nullptr;
-    }
     Notifier *m_notifier;
 };
 
@@ -177,20 +150,22 @@ int main(int argc, char *argv[])
     parser.setApplicationDescription(QStringLiteral("A desktop client for WeeChat's relay api"));
     parser.addHelpOption();
     parser.addVersionOption();
-    QCommandLineOption screenshot(QStringLiteral("screenshot"),
-                                  QStringLiteral("Save a screenshot of the window to <file> and quit (for development)."),
-                                  QStringLiteral("file"));
-    QCommandLineOption delay(QStringLiteral("screenshot-delay"), QStringLiteral("Milliseconds to wait before the screenshot."),
-                             QStringLiteral("ms"), QStringLiteral("2500"));
-    QCommandLineOption action(QStringLiteral("screenshot-action"),
-                              QStringLiteral("UI state to show before the screenshot (development)."), QStringLiteral("name"));
     QCommandLineOption multi(QStringLiteral("new-instance"), QStringLiteral("Don't hand over to a running instance."));
-    parser.addOptions({screenshot, delay, action, multi});
+    parser.addOption(multi);
+#ifdef WD_DEVTOOLS
+    DevTools dev;
+    dev.addOptions(parser);
+#endif
     parser.process(app);
+#ifdef WD_DEVTOOLS
+    const bool throwaway = parser.isSet(multi) || dev.screenshotMode(parser);
+#else
+    const bool throwaway = parser.isSet(multi);
+#endif
 
     // Single instance: a second launch just raises the first window.
     const QString serverName = QStringLiteral("weechat-desktop-") + qEnvironmentVariable("USER");
-    if (!parser.isSet(multi) && !parser.isSet(screenshot)) {
+    if (!throwaway) {
         QLocalSocket probe;
         probe.connectToServer(serverName);
         if (probe.waitForConnected(300)) {
@@ -217,7 +192,7 @@ int main(int argc, char *argv[])
     QObject::connect(session, &Session::raiseRequested, platform, &Platform::raiseRequested);
 
     QLocalServer instanceServer;
-    if (!parser.isSet(multi) && !parser.isSet(screenshot)) {
+    if (!throwaway) {
         QLocalServer::removeServer(serverName);
         instanceServer.listen(serverName);
         QObject::connect(&instanceServer, &QLocalServer::newConnection, platform, [&instanceServer, platform] {
@@ -248,54 +223,17 @@ int main(int argc, char *argv[])
     engine.setNetworkAccessManagerFactory(&namFactory);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
-    engine.setInitialProperties({{QStringLiteral("devAction"), parser.value(action)}});
+#ifdef WD_DEVTOOLS
+    qmlRegisterSingletonInstance("WeechatDesktop.Core", 1, 0, "Dev", &dev);
+    engine.setInitialProperties({{QStringLiteral("devAction"), dev.action(parser)}});
+#endif
     engine.loadFromModule("WeechatDesktop", "Main");
     if (engine.rootObjects().isEmpty())
         return 1;
 
-    // Development: WD_FRAMES=<dir> saves a frame every 100 ms for 4 s (startup smoothness).
-    if (const QString dir = qEnvironmentVariable("WD_FRAMES"); !dir.isEmpty()) {
-        auto *t = new QTimer(&app);
-        auto *n = new int(0);
-        QObject::connect(t, &QTimer::timeout, &app, [&engine, t, n, dir] {
-            if (auto *w = qobject_cast<QQuickWindow *>(engine.rootObjects().value(0)))
-                w->grabWindow().save(QStringLiteral("%1/%2.png").arg(dir).arg(*n, 3, 10, QLatin1Char('0')));
-            if (++*n >= 40)
-                t->stop();
-        });
-        t->start(100);
-    }
-    if (parser.isSet(screenshot)) {
-        const QString file = parser.value(screenshot);
-        QTimer::singleShot(parser.value(delay).toInt(), &app, [&engine, file] {
-            if (auto *w = qobject_cast<QQuickWindow *>(engine.rootObjects().first())) {
-                const bool ok = w->grabWindow().save(file);
-                qInfo("screenshot %s: %s", qPrintable(file), ok ? "saved" : "failed");
-                // Other visible windows (e.g. the whois window) go next to it: file-1.png, …
-                int n = 0;
-                for (QWindow *other : QGuiApplication::topLevelWindows()) {
-                    auto *q = qobject_cast<QQuickWindow *>(other);
-                    if (q && q != w && q->isVisible()) {
-                        QString extra = file;
-                        extra.insert(extra.lastIndexOf(u'.') < 0 ? extra.size() : extra.lastIndexOf(u'.'),
-                                     QStringLiteral("-%1").arg(++n));
-                        q->grabWindow().save(extra);
-                        qInfo("screenshot %s: saved", qPrintable(extra));
-                    }
-                }
-                for (QWidget *widget : QApplication::topLevelWidgets()) { // native menus
-                    if (!widget->isVisible())
-                        continue;
-                    QString extra = file;
-                    extra.insert(extra.lastIndexOf(u'.') < 0 ? extra.size() : extra.lastIndexOf(u'.'),
-                                 QStringLiteral("-w%1").arg(++n));
-                    widget->grab().save(extra);
-                    qInfo("screenshot %s: saved", qPrintable(extra));
-                }
-            }
-            QCoreApplication::quit();
-        });
-    }
+#ifdef WD_DEVTOOLS
+    dev.start(parser, engine);
+#endif
     if (settings->autoConnect() && settings->hasConnection())
         session->connectToRelay();
 
