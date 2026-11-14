@@ -114,9 +114,12 @@ Popup {
                 hoverEnabled: true
                 focusPolicy: Qt.NoFocus
                 opacity: modelData.muted ? 0.6 : 1
+                readonly property bool current: ListView.isCurrentItem
+                onHoveredChanged: if (hovered) m.ListView.view.currentIndex = index
                 onClicked: { panel.jump(modelData.buffer, modelData.lineId); panel.close() }
                 background: Rectangle {
-                    color: m.hovered || m.ListView.isCurrentItem ? Theme.hover : "transparent"
+                    color: m.current ? Theme.accentSoft : "transparent"
+                    Rectangle { visible: m.current; width: 3; height: parent.height; color: Theme.accent }
                     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
                 }
                 contentItem: ColumnLayout {
@@ -146,7 +149,7 @@ Popup {
                             implicitHeight: 20
                             IconButton {
                                 anchors.centerIn: parent
-                                visible: m.hovered || m.ListView.isCurrentItem || m.modelData.muted
+                                visible: m.current || m.modelData.muted
                                 iconName: m.modelData.muted ? "bell" : "mic-off"
                                 iconSize: 14; implicitWidth: 24; implicitHeight: 24
                                 tip: m.modelData.muted ? qsTr("Unmute %1").arg(m.modelData.nick)

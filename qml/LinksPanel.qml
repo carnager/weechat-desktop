@@ -162,9 +162,13 @@ Popup {
                 hoverEnabled: true
                 focusPolicy: Qt.NoFocus
                 opacity: live ? 1 : 0.35
+                readonly property bool current: ListView.isCurrentItem
+                onHoveredChanged: if (hovered) row.ListView.view.currentIndex = index
                 onClicked: panel.activate(modelData, false)
+                // The current row (Enter opens it): accent tint and a bar, like the quick switcher.
                 background: Rectangle {
-                    color: row.hovered || row.ListView.isCurrentItem ? Theme.hover : "transparent"
+                    color: row.current ? Theme.accentSoft : "transparent"
+                    Rectangle { visible: row.current; width: 3; height: parent.height; color: Theme.accent }
                     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
                 }
                 contentItem: RowLayout {
@@ -196,7 +200,8 @@ Popup {
                         Text {
                             Layout.fillWidth: true
                             text: row.modelData.url.replace(/^https?:\/\//, "")
-                            color: Theme.link
+                            color: row.current ? Theme.text : Theme.link
+                            font.weight: row.current ? Font.DemiBold : Font.Normal
                             font.pixelSize: Theme.small + 1
                             elide: Text.ElideMiddle
                         }
@@ -215,14 +220,14 @@ Popup {
                         }
                     }
                     IconButton {
-                        visible: row.hovered || row.ListView.isCurrentItem
+                        visible: row.current
                         iconName: "copy"; iconSize: 15; implicitWidth: 28; implicitHeight: 28
                         tip: qsTr("Copy (Shift + label)")
                         onClicked: panel.activate(row.modelData, true)
                     }
                     IconButton {
                         Layout.rightMargin: 8
-                        visible: row.hovered || row.ListView.isCurrentItem
+                        visible: row.current
                         iconName: "message"; iconSize: 15; implicitWidth: 28; implicitHeight: 28
                         tip: qsTr("Show in chat")
                         onClicked: { panel.jump(row.modelData.lineId); panel.close() }
