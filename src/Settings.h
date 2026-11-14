@@ -51,6 +51,9 @@ class Settings : public QObject
     // Behaviour
     WD_SETTING(bool, notifications, Notifications, true)
     WD_SETTING(bool, notifyWhenFocused, NotifyWhenFocused, false)
+    // Nicks whose highlights don't count: no mention, badge or notification. Space separated, * wildcards.
+    WD_SETTING(QString, mutedNicks, MutedNicks,
+               QStringLiteral("NickServ ChanServ MemoServ OperServ HostServ BotServ SaslServ Global Alis *status"))
     WD_SETTING(bool, closeToTray, CloseToTray, false)
     WD_SETTING(bool, showNicklist, ShowNicklist, true)
     WD_SETTING(bool, showSidebar, ShowSidebar, true)

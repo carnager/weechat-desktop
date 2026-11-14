@@ -1,6 +1,7 @@
 #include "DevTools.h"
 
 #include <QApplication>
+#include <QCursor>
 #include <QCommandLineParser>
 #include <QMouseEvent>
 #include <QQmlApplicationEngine>
@@ -111,6 +112,16 @@ void DevTools::mouse(int type, qreal x, qreal y)
     QCoreApplication::sendEvent(w, &e);
 }
 
+void DevTools::hover(qreal x, qreal y)
+{
+    QWindow *w = mainWindow();
+    if (!w)
+        return;
+    QMouseEvent e(QEvent::MouseMove, QPointF(x, y), w->mapToGlobal(QPointF(x, y)), Qt::NoButton, Qt::NoButton,
+                  Qt::NoModifier);
+    QCoreApplication::sendEvent(w, &e);
+}
+
 void DevTools::wheel(qreal x, qreal y, int angleDeltaY)
 {
     QWindow *w = mainWindow();
@@ -119,4 +130,10 @@ void DevTools::wheel(qreal x, qreal y, int angleDeltaY)
     QWheelEvent e(QPointF(x, y), w->mapToGlobal(QPointF(x, y)), QPoint(), QPoint(0, angleDeltaY), Qt::NoButton,
                   Qt::NoModifier, Qt::NoScrollPhase, false);
     QCoreApplication::sendEvent(w, &e);
+}
+
+int DevTools::cursorShape() const
+{
+    QWindow *w = mainWindow();
+    return w ? int(w->cursor().shape()) : -1;
 }

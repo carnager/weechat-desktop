@@ -95,6 +95,9 @@ public:
     Q_INVOKABLE int findPrevious(const QString &query, int fromRow) const;
     Q_INVOKABLE int findNext(const QString &query, int fromRow) const;
     Q_INVOKABLE int countMatches(const QString &query) const;
+    /// The links in the loaded lines, newest first, each once (its newest line):
+    /// [{url, text, nick, date, lineId, count}].
+    Q_INVOKABLE QVariantList links() const;
     /// Plain-text transcript of rows [from, to] for copying.
     Q_INVOKABLE QString textOfRows(int from, int to) const;
 

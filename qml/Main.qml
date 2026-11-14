@@ -51,6 +51,34 @@ ApplicationWindow {
     Timer { id: sendTimer; interval: 400; onTriggered: { chat.sendInput(); Qt.callLater(() => win.check("scrollsend", chat.atBottom)) } }
     Timer { id: pasteTimer; interval: 300; onTriggered: { chat.sendInput(); if (win.devAction === "paste") win.check("paste", chat.inputConfirming && !chat.inputEmpty) } }
     Timer { id: pasteTimer2; interval: 700; onTriggered: { chat.sendInput(); win.check("pastesend", chat.inputEmpty && !chat.inputConfirming) } }
+    // "linkcursor": hover the newest link on screen, then plain text: hand, then I-beam.
+    Timer {
+        id: cursorTimer
+        interval: 250
+        repeat: true
+        property int step: 0
+        property var link: null
+        onTriggered: {
+            if (step === 0) {
+                link = chat.visibleLinks()[0] || null
+                if (!link) { stop(); win.check("linkcursor", false); return }
+                const p = chat.mapToItem(null, link.x + Math.min(20, link.w / 2), link.y + link.h / 2)
+                Dev.hover(p.x, p.y)
+            } else if (step === 1) {
+                console.log("cursor over link:", Dev.cursorShape())
+                const onLink = Dev.cursorShape() === Qt.PointingHandCursor
+                const p = chat.mapToItem(null, chat.width * 0.5, link.y - 30)
+                Dev.hover(p.x, p.y)
+                win.linkCursorOk = onLink
+            } else {
+                console.log("cursor off link:", Dev.cursorShape())
+                stop()
+                win.check("linkcursor", win.linkCursorOk && Dev.cursorShape() !== Qt.PointingHandCursor)
+            }
+            ++step
+        }
+    }
+    property bool linkCursorOk: false
     Timer { id: scrollCheck; interval: 300; onTriggered: win.check("scroll", !chat.atBottom) }
     Timer { id: queryTimer; interval: 1200; onTriggered: Relay.sendInput("hi alice, testing the desktop client :wave:") }
     // "select": drag from blank space right of a message, down and into the left gutter.
@@ -84,6 +112,11 @@ ApplicationWindow {
             else if (a === "settings") settingsDialog.open()
             else if (a === "shortcuts") shortcuts.open()
             else if (a === "mentions") mentions.open()
+            else if (a === "mentionsmuted") {
+                mentions.open()
+                win.check("mentionsmuted", Relay.mutedMentions > 0 && !Relay.mentions.some(m => m.nick === "NickServ")
+                                           && Relay.allMentions.some(m => m.nick === "NickServ" && m.muted))
+            }
             else if (a === "light") AppSettings.theme = "light"
             else if (a === "compact") AppSettings.layout = "compact"
             else if (a === "completion") chat.insertText(":sm")
@@ -92,6 +125,10 @@ ApplicationWindow {
             else if (a === "query") { Relay.openQuery("alice"); queryTimer.start() }
             else if (a === "scroll") { const p = chat.mapToItem(null, chat.width / 2, chat.height / 2); for (let i = 0; i < 6; ++i) Dev.wheel(p.x, p.y, 120); scrollCheck.start() }
             else if (a === "select") selectTimer.start()
+            else if (a === "linkcursor") cursorTimer.start()
+            else if (a === "links") { linksPanel.openFor(Relay.current); win.check("links", linksPanel.shown.length > 0) }
+            else if (a.startsWith("hoverat:")) { const c = a.substring(8).split(","); Dev.hover(+c[0], +c[1]); Qt.callLater(() => console.log("cursor at", c, Dev.cursorShape())) }
+            else if (a === "hints") win.check("hints", chat.startHints() && chat.hints.length > 0)
             else if (a.startsWith("whois:")) whoisWindow.showFor(a.substring(6))
             else if (a.startsWith("type:")) chat.insertText(a.substring(5))
             else if (a === "nickmenu") nickMenu.popupFor("alice", null)
@@ -214,6 +251,8 @@ ApplicationWindow {
                 onOpenMentions: mentions.open()
                 onOpenSettings: settingsDialog.open()
                 onNickClicked: (nick, item) => nickMenu.popupFor(nick, item)
+                onToast: (message) => toast.show(message)
+                onOpenLinks: linksPanel.openFor(Relay.current)
             }
 
             Rectangle {
@@ -261,6 +300,11 @@ ApplicationWindow {
         id: mentions
         onJump: (buffer, lineId) => { Relay.openBufferByName(buffer); chat.scrollToLine(lineId) }
     }
+    LinksPanel {
+        id: linksPanel
+        onJump: (lineId) => chat.scrollToLine(lineId)
+        onToast: (message) => toast.show(message)
+    }
     NickMenu {
         id: nickMenu
         onMention: (nick) => chat.insertText(nick + (chat.inputEmpty ? ": " : " "))
@@ -292,6 +336,8 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+B"; onActivated: AppSettings.showSidebar = !AppSettings.showSidebar }
     Shortcut { sequences: ["Ctrl+Shift+N", "Ctrl+Shift+L"]; onActivated: AppSettings.showNicklist = !AppSettings.showNicklist }
     Shortcut { sequence: "Ctrl+F"; onActivated: chat.openSearch() }
+    Shortcut { sequence: "Ctrl+O"; onActivated: if (!chat.startHints()) toast.show(qsTr("No links on screen")) }
+    Shortcut { sequence: "Ctrl+Shift+O"; onActivated: linksPanel.opened ? linksPanel.close() : linksPanel.openFor(Relay.current) }
     Shortcut { sequence: "Ctrl+E"; onActivated: chat.openEmojiPicker() }
     Shortcut { sequence: "Ctrl+Shift+A"; onActivated: { Relay.markAllRead(); toast.show(qsTr("All buffers marked read")) } }
     Shortcut { sequence: "Ctrl+Shift+R"; onActivated: Relay.reconnectNow() }

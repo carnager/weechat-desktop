@@ -6,6 +6,7 @@
 
 #include <QHash>
 #include <QObject>
+#include <QRegularExpression>
 #include <QPointer>
 #include <QTimer>
 #include <QSet>
@@ -35,6 +36,9 @@ class Session : public QObject
     Q_PROPERTY(int totalHighlights READ totalHighlights NOTIFY totalsChanged)
     Q_PROPERTY(bool windowActive READ windowActive WRITE setWindowActive NOTIFY windowActiveChanged)
     Q_PROPERTY(QVariantList mentions READ mentions NOTIFY mentionsChanged)
+    /// Mentions including those from muted nicks (Settings::mutedNicks), each with "muted".
+    Q_PROPERTY(QVariantList allMentions READ allMentions NOTIFY mentionsChanged)
+    Q_PROPERTY(int mutedMentions READ mutedMentions NOTIFY mentionsChanged)
     Q_PROPERTY(int unseenMentions READ unseenMentions NOTIFY mentionsChanged)
     Q_PROPERTY(Completer *completer READ completer CONSTANT)
     /// The latest /whois asked for through requestWhois(): nick, server, userHost, realName,
@@ -60,6 +64,12 @@ public:
     bool windowActive() const { return m_windowActive; }
     void setWindowActive(bool active);
     QVariantList mentions() const { return m_mentions; }
+    QVariantList allMentions() const { return m_allMentions; }
+    int mutedMentions() const { return int(m_allMentions.size() - m_mentions.size()); }
+    /// Whether highlights from [nick] are muted.
+    Q_INVOKABLE bool isMuted(const QString &nick) const;
+    /// Add [nick] to (or take it off) the muted list.
+    Q_INVOKABLE void setMuted(const QString &nick, bool muted);
     int unseenMentions() const { return m_unseenMentions; }
     Q_INVOKABLE void markMentionsSeen() { m_unseenMentions = 0; emit mentionsChanged(); }
     Completer *completer() const { return m_completer; }
@@ -151,7 +161,11 @@ private:
     bool m_synced = false;
     bool m_windowActive = true;
     QString m_version;
-    QVariantList m_mentions;
+    QVariantList m_mentions;    // shown: not from muted nicks
+    QVariantList m_allMentions; // everything, newest first
+    QList<QRegularExpression> m_muted;
+    void updateMuted();
+    void filterMentions();
     int m_unseenMentions = 0;
     QSet<QString> m_mentionKeys; // "bufferId:lineId", so history and live lines don't double up
     void collectMentions(Buffer *b);

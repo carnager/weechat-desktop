@@ -26,7 +26,11 @@ public:
 
     /// Real input events, as a person would make them. type: 0 press, 1 move, 2 release.
     Q_INVOKABLE void mouse(int type, qreal x, qreal y);
+    /// The pointer moving with no button held.
+    Q_INVOKABLE void hover(qreal x, qreal y);
     Q_INVOKABLE void wheel(qreal x, qreal y, int angleDeltaY);
+    /// The main window's cursor shape right now (Qt::CursorShape).
+    Q_INVOKABLE int cursorShape() const;
 
 private:
     QCommandLineOption m_screenshot;

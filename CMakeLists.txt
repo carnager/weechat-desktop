@@ -73,6 +73,7 @@ set(QML_SOURCES
     qml/WhoisWindow.qml
     qml/CertificateDialog.qml
     qml/MentionsPanel.qml
+    qml/LinksPanel.qml
     qml/NickMenu.qml
     qml/IconButton.qml
     qml/Icon.qml

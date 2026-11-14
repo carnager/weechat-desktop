@@ -203,21 +203,22 @@ Rectangle {
     // The buffer's context menu: a native desktop menu.
     QtObject {
         id: rowMenu
+        property Icon glyphs: Icon { visible: false }
         property var buffer: null
         function popupFor(buf) {
             buffer = buf
             const entries = [
                 { section: buf.name },
-                { id: "read", text: qsTr("Mark as read"), icon: "mail-mark-read",
+                { id: "read", text: qsTr("Mark as read"), icon: "check-check",
                   enabled: buf.unread > 0 || buf.lowActivity > 0 },
-                { id: "copy", text: qsTr("Copy name"), icon: "edit-copy" }
+                { id: "copy", text: qsTr("Copy name"), icon: "copy" }
             ]
             if (buf.kind === "channel")
-                entries.push(buf.joined ? { id: "part", text: qsTr("Leave"), icon: "system-log-out" }
-                                        : { id: "join", text: qsTr("Rejoin"), icon: "go-jump" })
+                entries.push(buf.joined ? { id: "part", text: qsTr("Leave"), icon: "log-out" }
+                                        : { id: "join", text: qsTr("Rejoin"), icon: "log-in" })
             if (buf.kind !== "core")
-                entries.push({ separator: true }, { id: "close", text: qsTr("Close buffer"), icon: "window-close" })
-            Platform.popupMenu("buffer", entries, null, 0, 0)
+                entries.push({ separator: true }, { id: "close", text: qsTr("Close buffer"), icon: "x" })
+            Platform.popupMenu("buffer", entries.map(e => e.icon ? Object.assign({ svg: rowMenu.glyphs.paths[e.icon] || "" }, e) : e), null, 0, 0)
         }
         property Connections conn: Connections {
             target: Platform

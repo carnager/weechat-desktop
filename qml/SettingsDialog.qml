@@ -292,6 +292,33 @@ Popup {
                             enabled: AppSettings.notifications
                             onToggled: AppSettings.notifyWhenFocused = checked
                         }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 10
+                            Layout.rightMargin: 10
+                            Layout.topMargin: 6
+                            Layout.bottomMargin: 6
+                            spacing: 6
+                            Text { text: qsTr("Muted nicks"); color: Theme.text; font.pixelSize: Theme.fontSize }
+                            Text {
+                                Layout.fillWidth: true
+                                text: qsTr("Their highlights don't show in Mentions, count as unread mentions or notify. Separate with spaces; * matches anything (e.g. *Serv).")
+                                color: Theme.muted
+                                font.pixelSize: Theme.small
+                                wrapMode: Text.Wrap
+                            }
+                            AppTextField {
+                                id: mutedField
+                                Layout.fillWidth: true
+                                implicitHeight: 34
+                                text: AppSettings.mutedNicks
+                                onEditingFinished: AppSettings.mutedNicks = text.trim()
+                                Connections {
+                                    target: AppSettings
+                                    function onMutedNicksChanged() { if (!mutedField.activeFocus) mutedField.text = AppSettings.mutedNicks }
+                                }
+                            }
+                        }
                         AppSwitch {
                             text: qsTr("Keep running in the tray")
                             description: Platform.trayAvailable ? qsTr("Closing the window hides it; quit from the tray menu or with Ctrl+Q.")

@@ -163,7 +163,10 @@ def build_world():
             if b.kind == "core":
                 b.lines.append(make_line("", "Plugins loaded: alias, buflist, charset, exec, fifo, irc, logger, relay, script", t, kind="system"))
             elif b.kind == "server":
-                b.lines.append(make_line("", f"irc: connected to {b.server} (203.0.113.{i})", t, kind="system"))
+                if i == n - 1:  # services highlight you too, which the mentions filter is for
+                    b.lines.append(make_line("NickServ", f"This nickname is registered. Please choose a different nickname, or identify via /msg NickServ IDENTIFY {OWN_NICK} <password>", t, kind="notice", highlight=True))
+                else:
+                    b.lines.append(make_line("", f"irc: connected to {b.server} (203.0.113.{i})", t, kind="system"))
             elif b.kind == "private":
                 speaker = rnd.choice(["alice", OWN_NICK])
                 b.lines.append(make_line(speaker, rnd.choice(CHATTER), t, self_msg=speaker == OWN_NICK))

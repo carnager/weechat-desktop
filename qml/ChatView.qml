@@ -10,6 +10,7 @@ Rectangle {
     signal openSwitcher()
     signal openMentions()
     signal openSettings()
+    signal openLinks()
     signal nickClicked(string nick, Item item)
 
     readonly property var buffer: Relay.current
@@ -133,6 +134,100 @@ Rectangle {
     }
     Timer { id: flashTimer; interval: 1600; onTriggered: chat.flashId = null }
 
+    /// The links on screen, newest first: [{href, x, y, w, h}] with the rectangle of each link's
+    /// first line in this item's coordinates. Found in the text as shown, the target read back
+    /// from the text item, so what's listed is exactly what a click would open.
+    function visibleLinks() {
+        const out = []
+        if (!buffer || !revealed)
+            return out
+        const kids = list.contentItem.children
+        for (let i = 0; i < kids.length; ++i) {
+            const item = kids[i]
+            if (!item.visible || !item.textItem || item.index === undefined)
+                continue
+            const top = item.mapToItem(list, 0, 0).y
+            if (top + item.height < 0 || top > list.height)
+                continue
+            const t = item.textItem
+            const text = t.getText(0, t.length)
+            const re = /(?:https?:\/\/|www\.)[^\s<>"]+/gi
+            let m
+            while ((m = re.exec(text)) !== null) {
+                const r = t.positionToRectangle(m.index)
+                const href = t.linkAt(r.x + 1, r.y + r.height / 2)
+                if (!href || href.startsWith("channel:"))
+                    continue
+                const end = t.positionToRectangle(m.index + m[0].length)
+                const p = t.mapToItem(chat, r.x, r.y)
+                const inList = t.mapToItem(list, r.x, r.y)
+                if (inList.y < -2 || inList.y + r.height > list.height + 2)
+                    continue
+                out.push({ href: href, x: p.x, y: p.y, h: r.height,
+                           w: end.y === r.y ? end.x - r.x : t.width - r.x, row: item.index })
+            }
+        }
+        out.sort((a, b) => b.y - a.y || b.x - a.x)
+        return out
+    }
+
+    // ---- link hints: a label on each link on screen; typing a label opens it (Shift: copies).
+    property bool hinting: false
+    property var hints: []
+    property string hintTyped: ""
+    /// Labels for [n] targets: single letters while they suffice, then pairs (never a prefix of
+    /// another label, so a label is complete the moment it's typed).
+    function hintLabels(n) {
+        const keys = "asdfjklghqweruiopzxcvnmtyb"
+        const out = []
+        if (n <= keys.length) {
+            for (let i = 0; i < n; ++i) out.push(keys[i])
+        } else {
+            for (let i = 0; i < keys.length && out.length < n; ++i)
+                for (let j = 0; j < keys.length && out.length < n; ++j)
+                    out.push(keys[i] + keys[j])
+        }
+        return out
+    }
+    function startHints() {
+        const links = visibleLinks()
+        if (links.length === 0)
+            return false
+        const labels = hintLabels(links.length)
+        hints = links.map((l, i) => Object.assign({ label: labels[i] }, l))
+        hintTyped = ""
+        hinting = true
+        hintLayer.forceActiveFocus()
+        return true
+    }
+    function stopHints() {
+        if (!hinting)
+            return
+        hinting = false
+        hints = []
+        hintTyped = ""
+        input.focusInput()
+    }
+    function typeHint(key, copy) {
+        const typed = hintTyped + key.toLowerCase()
+        const matching = hints.filter(h => h.label.startsWith(typed))
+        if (matching.length === 0)
+            return // not a label: ignore the key
+        const exact = matching.find(h => h.label === typed)
+        if (!exact) {
+            hintTyped = typed
+            return
+        }
+        stopHints()
+        if (copy) {
+            Platform.copy(exact.href)
+            chat.toast(qsTr("Link copied"))
+        } else {
+            handleLink(exact.href)
+        }
+    }
+    signal toast(string message)
+
     function handleLink(link) {
         if (link.startsWith("channel:"))
             Relay.joinChannel(link.substring(8))
@@ -163,6 +258,7 @@ Rectangle {
 
     // When the buffer changes: open at the unread marker if there is one, else at the bottom.
     onBufferChanged: {
+        stopHints()
         chatSel.clear()
         revealed = false
         revealFallback.restart()
@@ -194,6 +290,7 @@ Rectangle {
             Layout.fillWidth: true
             visible: !!chat.buffer
             onOpenSearch: search.open()
+            onOpenLinks: chat.openLinks()
             onLinkActivated: (link) => chat.handleLink(link)
         }
 
@@ -330,6 +427,7 @@ Rectangle {
                 onContentHeightChanged: if (chat.stickToBottom && !moving) Qt.callLater(list.positionViewAtEnd)
                 onHeightChanged: if (chat.stickToBottom) Qt.callLater(list.positionViewAtEnd)
                 onContentYChanged: {
+                    if (chat.hinting) chat.stopHints()
                     if (chat.buffer && chat.buffer.hasMoreHistory && !chat.buffer.loadingHistory
                         && count > 0 && !chat.stickToBottom && contentY - originY < 600)
                         Relay.loadMoreHistory()
@@ -381,6 +479,31 @@ Rectangle {
                 property var pressItem: null
                 property real lastX: 0
                 property real lastY: 0
+                // What's under the pointer, for the cursor (this area is on top of the messages,
+                // so their own hover cursors never apply): a link, something clickable, or text.
+                property string hoverLink: ""
+                property int hoverKind: 0 // 0 nothing, 1 text, 2 link or clickable
+                cursorShape: hoverKind === 2 ? Qt.PointingHandCursor : hoverKind === 1 ? Qt.IBeamCursor : Qt.ArrowCursor
+                function updateHover(x, y) {
+                    const h = hit(x, y, false)
+                    let kind = 0, link = ""
+                    if (h) {
+                        const local = mapToItem(h.item, x, y)
+                        if (h.inText && h.link) { kind = 2; link = h.link }
+                        else if (h.item.interactiveAt(local.x, local.y)) kind = 2
+                        else if (h.inText) kind = 1
+                    }
+                    hoverKind = kind
+                    hoverLink = link
+                }
+                HoverHandler {
+                    id: selectorHover
+                    onPointChanged: if (!selector.pressed) selector.updateHover(point.position.x, point.position.y)
+                    onHoveredChanged: if (!hovered) { selector.hoverKind = 0; selector.hoverLink = "" }
+                }
+                ToolTip.visible: hoverLink.length > 0 && !hoverLink.startsWith("channel:") && !pressed
+                ToolTip.delay: 700
+                ToolTip.text: hoverLink
 
                 // {item, pos, inText} for a point in this MouseArea, or null over no row.
                 function hit(x, y, clampToView) {
@@ -450,6 +573,7 @@ Rectangle {
                         Platform.copySelection(chat.selectedText()) // X11/Wayland primary chatSel
                     dragging = false
                     pressItem = null
+                    updateHover(mouse.x, mouse.y)
                 }
                 onDoubleClicked: (mouse) => {
                     const h = hit(mouse.x, mouse.y, false)
@@ -475,6 +599,89 @@ Rectangle {
                         const over = selector.lastY < 0 ? selector.lastY : selector.lastY - selector.height
                         chat.scrollBy(Math.max(-60, Math.min(60, over / 2)))
                         selector.extendTo(selector.lastX, selector.lastY)
+                    }
+                }
+            }
+
+            // Link hints over the messages (see startHints).
+            Item {
+                id: hintLayer
+                anchors.fill: list
+                visible: chat.hinting
+                z: 5
+                Keys.onPressed: (e) => {
+                    if (e.key === Qt.Key_Escape) {
+                        chat.stopHints()
+                    } else if (e.key === Qt.Key_Backspace) {
+                        chat.hintTyped = chat.hintTyped.slice(0, -1)
+                    } else if (e.text.length === 1 && /[a-z]/i.test(e.text)) {
+                        chat.typeHint(e.text, (e.modifiers & Qt.ShiftModifier) !== 0)
+                    }
+                    e.accepted = true // nothing else while hinting
+                }
+                onActiveFocusChanged: if (!activeFocus) chat.stopHints()
+                MouseArea { anchors.fill: parent; onPressed: chat.stopHints() }
+                Repeater {
+                    model: chat.hints
+                    delegate: Item {
+                        id: hint
+                        required property var modelData
+                        readonly property bool live: modelData.label.startsWith(chat.hintTyped)
+                        readonly property point at: hintLayer.mapFromItem(chat, modelData.x, modelData.y)
+                        visible: live
+                        // The link itself, underlined in the accent colour…
+                        Rectangle {
+                            x: hint.at.x
+                            y: hint.at.y
+                            width: Math.max(8, hint.modelData.w)
+                            height: hint.modelData.h
+                            radius: 3
+                            color: Theme.alpha(Theme.accent, 0.16)
+                            border.width: 1
+                            border.color: Theme.alpha(Theme.accent, 0.55)
+                        }
+                        // …and its label over the link's start.
+                        Rectangle {
+                            x: Math.max(2, hint.at.x - 6)
+                            y: Math.max(2, hint.at.y - height * 0.6)
+                            width: label.implicitWidth + 10
+                            height: label.implicitHeight + 4
+                            radius: 4
+                            color: Theme.accent
+                            border.width: 1
+                            border.color: Theme.alpha("#000000", 0.25)
+                            Text {
+                                id: label
+                                anchors.centerIn: parent
+                                textFormat: Text.StyledText
+                                text: "<span style=\"opacity:0.55\">" + chat.hintTyped + "</span>"
+                                      + hint.modelData.label.substring(chat.hintTyped.length)
+                                color: Theme.onAccent
+                                font.pixelSize: Theme.small
+                                font.weight: Font.Bold
+                                font.family: "monospace"
+                                font.capitalization: Font.AllUppercase
+                            }
+                        }
+                    }
+                }
+                // What the keys do, at the bottom.
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 12
+                    width: hintHelp.implicitWidth + 24
+                    height: hintHelp.implicitHeight + 12
+                    radius: height / 2
+                    color: Theme.surface
+                    border.width: 1
+                    border.color: Theme.border
+                    Text {
+                        id: hintHelp
+                        anchors.centerIn: parent
+                        text: qsTr("Type a label to open the link · Shift to copy it · Esc to cancel")
+                        color: Theme.muted
+                        font.pixelSize: Theme.small
                     }
                 }
             }

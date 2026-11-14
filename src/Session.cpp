@@ -60,6 +60,8 @@ Session::Session(Settings *settings, Notifier *notifier, QObject *parent)
     connect(settings, &Settings::renderColorsChanged, this, &Session::applySettings);
     connect(settings, &Settings::emojiShortcodesChanged, this, &Session::applySettings);
     connect(settings, &Settings::use24hChanged, this, &Session::applySettings);
+    connect(settings, &Settings::mutedNicksChanged, this, &Session::updateMuted);
+    updateMuted();
     {
         auto &ctx = FormatContext::current();
         ctx.showJoinPart = settings->showJoinPart();
@@ -474,6 +476,8 @@ void Session::maybeNotify(Buffer *b, const LineModel::Entry &e)
     const bool privateMsg = b->kind() == Buffer::Private;
     if (!e.line.highlight && !privateMsg)
         return;
+    if (e.line.highlight && !privateMsg && isMuted(e.nick))
+        return;
     if (b == m_current && m_windowActive && !m_settings->notifyWhenFocused())
         return;
     QString title = privateMsg ? e.nick : tr("%1 in %2").arg(e.nick, b->displayName());
@@ -497,15 +501,63 @@ void Session::addMention(Buffer *b, qint64 lineId, const QString &nick, const QS
         {QStringLiteral("text"), m_settings->emojiShortcodes() ? Formatter::replaceShortcodes(text) : text},
         {QStringLiteral("date"), when},
     };
-    if (live && !(b == m_current && m_windowActive))
+    if (live && !(b == m_current && m_windowActive) && !isMuted(nick))
         ++m_unseenMentions;
     // Newest first; history can arrive after live lines, so insert in order.
     qsizetype i = 0;
-    while (i < m_mentions.size() && m_mentions.at(i).toMap().value(QStringLiteral("date")).toDateTime() > when)
+    while (i < m_allMentions.size() && m_allMentions.at(i).toMap().value(QStringLiteral("date")).toDateTime() > when)
         ++i;
-    m_mentions.insert(i, entry);
-    while (m_mentions.size() > kMaxMentions)
-        m_mentions.removeLast();
+    m_allMentions.insert(i, entry);
+    while (m_allMentions.size() > kMaxMentions)
+        m_allMentions.removeLast();
+    filterMentions();
+}
+
+bool Session::isMuted(const QString &nick) const
+{
+    for (const auto &re : m_muted)
+        if (re.match(nick).hasMatch())
+            return true;
+    return false;
+}
+
+void Session::setMuted(const QString &nick, bool muted)
+{
+    QStringList words = m_settings->mutedNicks().split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
+    if (muted) {
+        if (isMuted(nick))
+            return;
+        words << nick;
+    } else {
+        // Only an exact entry can be taken off; a wildcard that matches stays.
+        words.removeIf([&](const QString &w) { return w.compare(nick, Qt::CaseInsensitive) == 0; });
+    }
+    m_settings->setMutedNicks(words.join(QLatin1Char(' ')));
+}
+
+void Session::updateMuted()
+{
+    m_muted.clear();
+    const QStringList words = m_settings->mutedNicks().split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
+    for (const QString &w : words)
+        m_muted << QRegularExpression(QRegularExpression::wildcardToRegularExpression(w),
+                                      QRegularExpression::CaseInsensitiveOption);
+    filterMentions();
+}
+
+void Session::filterMentions()
+{
+    m_mentions.clear();
+    for (auto &v : m_allMentions) {
+        QVariantMap m = v.toMap();
+        const bool muted = isMuted(m.value(QStringLiteral("nick")).toString());
+        if (!m.contains(QStringLiteral("muted")) || m.value(QStringLiteral("muted")).toBool() != muted) {
+            m[QStringLiteral("muted")] = muted;
+            v = m;
+        }
+        if (!muted)
+            m_mentions << v;
+    }
     emit mentionsChanged();
 }
 
@@ -519,7 +571,8 @@ void Session::collectMentions(Buffer *b)
 void Session::clearMentions()
 {
     m_unseenMentions = 0;
-    m_mentions.clear(); // keys stay: cleared mentions shouldn't come back with the next history fetch
+    m_mentions.clear();
+    m_allMentions.clear(); // keys stay: cleared mentions shouldn't come back with the next history fetch
     emit mentionsChanged();
 }
 

@@ -221,6 +221,21 @@ private slots:
         QVERIFY(m.data(m.index(2), LineModel::GroupStartRole).toBool());
     }
 
+    void linksNewestFirstOnce()
+    {
+        LineModel m;
+        m.setHistory({mkLine(1, "a", "see https://a.example/x and www.b.example", {"irc_privmsg", "nick_a"}),
+                      mkLine(2, "b", "again https://a.example/x.", {"irc_privmsg", "nick_b"}),
+                      mkLine(3, "c", "no links here", {"irc_privmsg", "nick_c"})});
+        const QVariantList links = m.links();
+        QCOMPARE(links.size(), 2);
+        const QVariantMap first = links.at(0).toMap();
+        QCOMPARE(first.value("url").toString(), QStringLiteral("https://a.example/x"));
+        QCOMPARE(first.value("nick").toString(), QStringLiteral("b")); // the newest posting
+        QCOMPARE(first.value("count").toInt(), 2);
+        QCOMPARE(links.at(1).toMap().value("url").toString(), QStringLiteral("https://www.b.example"));
+    }
+
     void actionWithColoredNick()
     {
         // As WeeChat sends a /me: the acting nick is wrapped in colour codes.

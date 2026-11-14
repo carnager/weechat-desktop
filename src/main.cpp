@@ -29,6 +29,9 @@
 #include <QQuickWindow>
 #include <QTimer>
 #include <QMenu>
+#include <QPalette>
+#include <QPainter>
+#include <QSvgRenderer>
 #include <QCursor>
 #include <QQuickItem>
 #include <qqml.h>
@@ -55,7 +58,7 @@ public:
     Q_INVOKABLE void quit() { QCoreApplication::quit(); }
 
     /// A real desktop menu (QMenu: platform style, can extend past the window) at ([x], [y]) in
-    /// [anchor]. [entries] are {id, text, icon (freedesktop name), enabled, checked} or
+    /// [anchor]. [entries] are {id, text, svg (an Icon.qml path set), enabled, checked} or
     /// {separator: true} or {section: "title"}. The choice comes back as menuTriggered(tag, id).
     Q_INVOKABLE void popupMenu(const QString &tag, const QVariantList &entries, QQuickItem *anchor, qreal x, qreal y)
     {
@@ -71,7 +74,7 @@ public:
                 menu->addSection(e.value(QStringLiteral("section")).toString());
                 continue;
             }
-            QAction *a = menu->addAction(QIcon::fromTheme(e.value(QStringLiteral("icon")).toString()),
+            QAction *a = menu->addAction(menuIcon(e.value(QStringLiteral("svg")).toString(), menu->palette()),
                                          e.value(QStringLiteral("text")).toString());
             a->setData(e.value(QStringLiteral("id")));
             a->setEnabled(e.value(QStringLiteral("enabled"), true).toBool());
@@ -91,6 +94,38 @@ public:
         if (menu->windowHandle() && parent)
             menu->windowHandle()->setTransientParent(parent);
         menu->popup(global);
+    }
+
+private:
+    /// The app's own stroke icon (Icon.qml) in the menu's text colours, so menus match the
+    /// rest of the window instead of mixing whatever the icon theme has.
+    static QIcon menuIcon(const QString &paths, const QPalette &palette)
+    {
+        if (paths.isEmpty())
+            return {};
+        QIcon icon;
+        const auto add = [&](QIcon::Mode mode, const QColor &color) {
+            const QByteArray svg = QStringLiteral(
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"%1\" "
+                "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">%2</svg>")
+                .arg(color.name(), paths).toUtf8();
+            QSvgRenderer renderer(svg);
+            for (int px : {16, 32, 48}) {
+                QPixmap pm(px, px);
+                pm.fill(Qt::transparent);
+                QPainter p(&pm);
+                p.setRenderHint(QPainter::Antialiasing);
+                // A little inset: stroke icons drawn edge to edge look heavier than theme icons.
+                const qreal m = px / 16.0;
+                renderer.render(&p, QRectF(m, m, px - 2 * m, px - 2 * m));
+                p.end();
+                icon.addPixmap(pm, mode);
+            }
+        };
+        add(QIcon::Normal, palette.color(QPalette::Active, QPalette::WindowText));
+        add(QIcon::Active, palette.color(QPalette::Active, QPalette::HighlightedText));
+        add(QIcon::Disabled, palette.color(QPalette::Disabled, QPalette::WindowText));
+        return icon;
     }
 
 signals:

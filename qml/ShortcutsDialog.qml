@@ -24,7 +24,9 @@ Popup {
             ["Alt A", qsTr("Next unread (highlights first)")],
             ["Alt ←", qsTr("Last visited buffer")],
             ["Ctrl Shift M", qsTr("Mentions")],
-            ["Ctrl F", qsTr("Search in buffer")] ] },
+            ["Ctrl F", qsTr("Search in buffer")],
+            ["Ctrl O", qsTr("Open a link on screen by its label")],
+            ["Ctrl Shift O", qsTr("Links in this buffer")] ] },
         { title: qsTr("Input"), keys: [
             ["Enter", qsTr("Send")],
             ["Shift Enter", qsTr("New line")],

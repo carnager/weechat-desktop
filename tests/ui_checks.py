@@ -29,6 +29,11 @@ SCENARIOS = [
     ("sending jumps to the bottom", {}, (1240, 800), "scrollsend", ["scrollsend"]),
     ("multi-line paste asks first", {}, (1240, 800), "paste", ["paste"]),
     ("confirmed paste is sent", {}, (1240, 800), "pastesend", ["pastesend"]),
+    ("hand cursor over links (cozy)", {}, (1240, 800), "linkcursor", ["linkcursor"]),
+    ("hand cursor over links (compact)", {"layout": "compact"}, (1240, 800), "linkcursor", ["linkcursor"]),
+    ("link hints label the links on screen", {}, (1240, 800), "hints", ["hints"]),
+    ("links panel lists the buffer's links", {}, (1240, 800), "links", ["links"]),
+    ("mentions from services are muted", {}, (1240, 800), "mentionsmuted", ["mentionsmuted"]),
     # Compact rows used to lay out forever (CPU 100%, memory growing) once lines wrapped.
     ("compact layout with wrapping lines settles", {"layout": "compact", "lastBuffer": "irc.libera.#essays"},
      (900, 700), "", []),

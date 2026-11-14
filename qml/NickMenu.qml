@@ -8,30 +8,36 @@ QtObject {
     signal mention(string nick)
     signal info(string nick)
 
+    // The menu icons are the app's own (Icon.qml): op and voice show IRC's @ and +.
+    property Icon glyphs: Icon { visible: false }
+    function withIcons(entries) {
+        return entries.map(e => e.icon ? Object.assign({ svg: glyphs.paths[e.icon] || "" }, e) : e)
+    }
+
     readonly property bool isChannel: !!Relay.current && Relay.current.kind === "channel"
 
     function popupFor(n, item) {
         nick = n
         const entries = [
             { section: n },
-            { id: "query", text: qsTr("Send message"), icon: "mail-message-new" },
-            { id: "mention", text: qsTr("Mention"), icon: "insert-text" },
-            { id: "info", text: qsTr("Info…"), icon: "dialog-information" },
-            { id: "copy", text: qsTr("Copy nick"), icon: "edit-copy" }
+            { id: "query", text: qsTr("Send message"), icon: "message" },
+            { id: "mention", text: qsTr("Mention"), icon: "reply" },
+            { id: "info", text: qsTr("Info…"), icon: "info" },
+            { id: "copy", text: qsTr("Copy nick"), icon: "copy" }
         ]
         if (isChannel) {
             entries.push({ separator: true },
-                { id: "op", text: qsTr("Give op"), icon: "emblem-favorite" },
-                { id: "voice", text: qsTr("Give voice"), icon: "audio-volume-high" },
-                { id: "quiet", text: qsTr("Quiet"), icon: "audio-volume-muted" },
+                { id: "op", text: qsTr("Give op"), icon: "at" },
+                { id: "voice", text: qsTr("Give voice"), icon: "plus" },
+                { id: "quiet", text: qsTr("Quiet"), icon: "mic-off" },
                 { separator: true },
-                { id: "kick", text: qsTr("Kick"), icon: "im-kick-user" },
-                { id: "kickban", text: qsTr("Kick and ban"), icon: "im-ban-user" })
+                { id: "kick", text: qsTr("Kick"), icon: "user-minus" },
+                { id: "kickban", text: qsTr("Kick and ban"), icon: "ban" })
         }
         if (item)
-            Platform.popupMenu("nick", entries, item, 0, item.height + 2)
+            Platform.popupMenu("nick", withIcons(entries), item, 0, item.height + 2)
         else
-            Platform.popupMenu("nick", entries, null, 0, 0)
+            Platform.popupMenu("nick", withIcons(entries), null, 0, 0)
     }
 
     property Connections conn: Connections {

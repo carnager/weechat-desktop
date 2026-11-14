@@ -8,6 +8,7 @@ Rectangle {
     property var buffer: Relay.current
     property bool topicExpanded: false
     signal openSearch()
+    signal openLinks()
     signal openMentions()
     signal openSwitcher()
     signal linkActivated(string link)
@@ -99,6 +100,11 @@ Rectangle {
             }
         }
 
+        IconButton {
+            iconName: "external"
+            tip: qsTr("Links in this buffer (Ctrl+Shift+O)")
+            onClicked: header.openLinks()
+        }
         IconButton {
             iconName: "search"
             tip: qsTr("Search in buffer (Ctrl+F)")

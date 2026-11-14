@@ -226,7 +226,6 @@ Item {
                         font.pixelSize: Theme.small
                         selectionColor: Theme.alpha(Theme.accent, 0.35)
                         onLinkActivated: (link) => msg.linkActivated(link)
-                        HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.IBeamCursor }
                     }
                     Text {
                         id: eventHoverTime
@@ -440,9 +439,6 @@ Item {
                 e.accepted = true
             }
         }
-        HoverHandler { cursorShape: textItem.hoveredLink ? Qt.PointingHandCursor : Qt.IBeamCursor }
-        ToolTip.visible: textItem.hoveredLink.length > 0 && !textItem.hoveredLink.startsWith("channel:")
-        ToolTip.delay: 700
-        ToolTip.text: textItem.hoveredLink
+        // The pointer cursor and the link tooltip come from ChatView's selector, which is on top.
     }
 }

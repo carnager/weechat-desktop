@@ -29,11 +29,16 @@ quick switcher, and a keyboard-first workflow that still works well with a mouse
   mIRC/WeeChat colours, clickable links and `#channels`, a "NEW" divider at the first unread
   line, day separators, per-message actions on hover (reply, quote, copy, nick menu) and
   in-buffer search (Ctrl+F).
+- **Links from the keyboard:** Ctrl+O puts a label on every link on screen; type it to open the
+  link, or hold Shift to copy it. Ctrl+Shift+O lists all links in the buffer's loaded history,
+  newest first, with the same labels and a filter.
 - **Previews (opt-in):** OpenGraph cards for links, plus inline images and GIFs (GIFs play on
   hover). Off by default, since fetching tells the site your IP address; turn them on in
   Settings. Results are cached for a week, with image sizes, so previews don't shift the chat.
 - **Unread state comes from WeeChat's hotlist.** Reading a buffer here marks it read in WeeChat
-  too. There's also a mentions panel (Ctrl+Shift+M) collecting highlights from every buffer.
+  too. There's also a mentions panel (Ctrl+Shift+M) collecting highlights from every buffer,
+  with a filter. Highlights from muted nicks (NickServ, ChanServ and other services by default;
+  Settings → Notifications) don't show there, count or notify.
 - **Notifications:** freedesktop notifications for highlights and private messages; clicking one
   opens the buffer. Optional tray icon with an unread badge, and close-to-tray.
 - **Nicklist:** ops, voiced and members, with filtering. Clicking a nick opens a native desktop

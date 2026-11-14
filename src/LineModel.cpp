@@ -424,6 +424,37 @@ int LineModel::countMatches(const QString &query) const
     return n;
 }
 
+QVariantList LineModel::links() const
+{
+    QVariantList out;
+    QHash<QString, int> seen; // url -> index in out
+    for (qsizetype i = m_visible.size() - 1; i >= 0; --i) {
+        const Entry &e = at(int(i));
+        render(e);
+        for (const QString &text : e.urls) {
+            QString url = text;
+            if (url.startsWith(u"www.", Qt::CaseInsensitive))
+                url.prepend(QStringLiteral("https://"));
+            if (auto it = seen.constFind(url); it != seen.cend()) {
+                QVariantMap m = out.at(*it).toMap();
+                m[QStringLiteral("count")] = m.value(QStringLiteral("count")).toInt() + 1;
+                out[*it] = m;
+                continue;
+            }
+            seen.insert(url, int(out.size()));
+            out << QVariantMap{
+                {QStringLiteral("url"), url},
+                {QStringLiteral("text"), text},
+                {QStringLiteral("nick"), e.nick},
+                {QStringLiteral("date"), e.line.date},
+                {QStringLiteral("lineId"), e.line.id},
+                {QStringLiteral("count"), 1},
+            };
+        }
+    }
+    return out;
+}
+
 QString LineModel::textOfRows(int from, int to) const
 {
     QStringList out;
