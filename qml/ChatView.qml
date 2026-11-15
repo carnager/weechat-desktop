@@ -457,8 +457,12 @@ Rectangle {
                     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                     target: null
                     onWheel: (e) => {
-                        const dy = e.pixelDelta.y !== 0 ? e.pixelDelta.y
-                                                        : e.angleDelta.y / 120 * Theme.fontSize * 4
+                        // Only trust pixelDelta for touchpad gestures (they have a scroll phase).
+                        // On Wayland a plain mouse wheel also carries pixelDelta, but it's the
+                        // compositor's tiny axis value (~10-15px per notch), which crawls.
+                        const touchpad = e.phase !== Qt.NoScrollPhase
+                        const dy = touchpad && e.pixelDelta.y !== 0 ? e.pixelDelta.y
+                                                                   : e.angleDelta.y / 120 * Theme.fontSize * 4
                         if (dy === 0)
                             return
                         chat.scrollBy(-dy)
