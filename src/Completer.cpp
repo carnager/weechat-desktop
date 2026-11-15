@@ -14,6 +14,7 @@ const QList<Completer::Command> &Completer::commands()
     static const QList<Command> list = {
         {"me", "Send an action"},
         {"msg", "Send a private message"},
+        {"np", "Share what's playing (pick the player in Settings → Messages)"},
         {"query", "Open a private conversation"},
         {"join", "Join a channel"},
         {"part", "Leave a channel"},

@@ -16,6 +16,7 @@ class Buffer;
 class Settings;
 class Notifier;
 class Completer;
+class NowPlaying;
 
 /// The relay session as the UI sees it: connection state, the buffers, the buffer being shown,
 /// and everything you can do (send, switch, mark read, …). Exposed to QML as `Relay`.
@@ -73,6 +74,7 @@ public:
     int unseenMentions() const { return m_unseenMentions; }
     Q_INVOKABLE void markMentionsSeen() { m_unseenMentions = 0; emit mentionsChanged(); }
     Completer *completer() const { return m_completer; }
+    NowPlaying *nowPlaying() const { return m_nowPlaying; }
 
     Q_INVOKABLE void connectToRelay();
     Q_INVOKABLE void disconnectFromRelay();
@@ -152,6 +154,7 @@ private:
     Settings *m_settings;
     Notifier *m_notifier;
     Completer *m_completer;
+    NowPlaying *m_nowPlaying;
     RelayConnection m_conn;
     BufferListModel m_buffers;
     BufferFilterModel m_sidebar;

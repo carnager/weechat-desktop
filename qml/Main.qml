@@ -110,6 +110,7 @@ ApplicationWindow {
             if (a === "switcher") switcher.openSwitcher()
             else if (a === "emoji") chat.openEmojiPicker()
             else if (a === "settings") settingsDialog.open()
+            else if (a === "settings-messages") { settingsDialog.page = 1; settingsDialog.open() }
             else if (a === "shortcuts") shortcuts.open()
             else if (a === "mentions") mentions.open()
             else if (a === "mentionsmuted") {

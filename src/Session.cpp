@@ -5,6 +5,7 @@
 #include "EmojiStore.h"
 #include "Formatter.h"
 #include "Notifier.h"
+#include "NowPlaying.h"
 #include "Settings.h"
 
 #include <QJsonArray>
@@ -51,6 +52,7 @@ Session::Session(Settings *settings, Notifier *notifier, QObject *parent)
     , m_settings(settings)
     , m_notifier(notifier)
     , m_completer(new Completer(this))
+    , m_nowPlaying(new NowPlaying(this))
 {
     m_sidebar.setSourceModel(&m_buffers);
     m_sidebar.setHideSpecial(settings->hideSpecialBuffers());
@@ -769,6 +771,17 @@ bool Session::sendInput(const QString &text)
     for (QString line : lines) {
         if (line.isEmpty())
             continue;
+        // "/np": what the player picked in Settings is playing. With no player picked it goes
+        // to WeeChat as typed, in case a script there defines /np.
+        static const QRegularExpression np(QStringLiteral(R"(^/np(\s.*)?$)"), QRegularExpression::CaseInsensitiveOption);
+        if (!m_settings->npPlayer().isEmpty() && np.match(line).hasMatch()) {
+            const auto r = m_nowPlaying->share(m_settings->npPlayer(), m_settings->npFormat());
+            if (r.text.isEmpty()) {
+                emit toast(r.error);
+                continue;
+            }
+            line = r.text;
+        }
         // ":tada:" → 🎉 in what we send, unless it's a command other than /me.
         const bool isCommand = line.startsWith(u'/') && !line.startsWith(u"//");
         if (m_settings->emojiShortcodes() && (!isCommand || line.startsWith(u"/me ")) && EmojiStore::instance()) {

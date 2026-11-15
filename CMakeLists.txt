@@ -24,6 +24,7 @@ add_library(weechat_core STATIC
     src/LinkPreviews.cpp src/LinkPreviews.h
     src/Notifier.cpp src/Notifier.h
     src/Completer.cpp src/Completer.h
+    src/NowPlaying.cpp src/NowPlaying.h
     src/Protocol.cpp src/Protocol.h
 )
 target_include_directories(weechat_core PUBLIC src)

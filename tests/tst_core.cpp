@@ -4,6 +4,7 @@
 #include "Formatter.h"
 #include "LineModel.h"
 #include "LinkPreviews.h"
+#include "NowPlaying.h"
 #include "Protocol.h"
 #include "RelayConnection.h"
 
@@ -29,6 +30,28 @@ class CoreTest : public QObject
 {
     Q_OBJECT
 private slots:
+    void nowPlayingKeys()
+    {
+        QCOMPARE(NowPlaying::keyOf(QStringLiteral("org.mpris.MediaPlayer2.mpd")), QStringLiteral("mpd"));
+        QCOMPARE(NowPlaying::keyOf(QStringLiteral("org.mpris.MediaPlayer2.firefox.instance_1_23")), QStringLiteral("firefox"));
+        QCOMPARE(NowPlaying::keyOf(QStringLiteral("org.mpris.MediaPlayer2.vlc.instance4242")), QStringLiteral("vlc"));
+        QCOMPARE(NowPlaying::keyOf(QStringLiteral("org.mpris.MediaPlayer2.spotify")), QStringLiteral("spotify"));
+    }
+
+    void nowPlayingFormat()
+    {
+        const QVariantMap full{{QStringLiteral("artist"), QStringLiteral("Boards of Canada")},
+                               {QStringLiteral("title"), QStringLiteral("Roygbiv")},
+                               {QStringLiteral("album"), QStringLiteral("Music Has the Right to Children")},
+                               {QStringLiteral("player"), QStringLiteral("mpd")}};
+        QCOMPARE(NowPlaying::expand(QStringLiteral("/me np: {track}"), full), QStringLiteral("/me np: Boards of Canada – Roygbiv"));
+        QCOMPARE(NowPlaying::expand(QStringLiteral("{title} [{album}] via {player}"), full),
+                 QStringLiteral("Roygbiv [Music Has the Right to Children] via mpd"));
+        // No artist (a stream, say): {track} is just the title. Newlines in tags never split the line.
+        QCOMPARE(NowPlaying::expand(QStringLiteral("/me np: {track}"), {{QStringLiteral("title"), QStringLiteral("Live\nset")}}),
+                 QStringLiteral("/me np: Live set"));
+    }
+
     void completionContextAfterNickCommands()
     {
         Completer c(nullptr);

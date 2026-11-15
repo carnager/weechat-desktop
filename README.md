@@ -44,6 +44,10 @@ quick switcher, and a keyboard-first workflow that still works well with a mouse
   too. There's also a mentions panel (Ctrl+Shift+M) collecting highlights from every buffer,
   with a filter. Highlights from muted nicks (NickServ, ChanServ and other services by default;
   Settings → Notifications) don't show there, count or notify.
+- **Now playing:** `/np` shares what your music player is playing (`/me np: Artist – Title` by
+  default; the format is configurable). Pick the player in Settings → Messages. Only that MPRIS
+  player is asked, so a video in a browser tab never ends up in a channel. With no player
+  picked, `/np` goes to WeeChat unchanged.
 - **Notifications:** freedesktop notifications for highlights and private messages; clicking one
   opens the buffer. Optional tray icon with an unread badge, and close-to-tray.
 - **Nicklist:** ops, voiced and members, with filtering. Clicking a nick opens a native desktop
@@ -118,7 +122,7 @@ a frame every 100 ms for the first 4 seconds, to check that startup doesn't visi
 
 ```sh
 QT_QPA_PLATFORM=offscreen ./build/weechat-desktop --screenshot shot.png \
-    --screenshot-action switcher   # or: emoji, settings, mentions, completion, light, compact, unread
+    --screenshot-action switcher   # or: emoji, settings, settings-messages, mentions, completion, light, compact, unread
 ```
 
 `tools/genemoji.py` regenerates `resources/emoji.json` from

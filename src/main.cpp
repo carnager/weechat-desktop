@@ -7,6 +7,7 @@
 #include "LinkPreviews.h"
 #include "NickModel.h"
 #include "Notifier.h"
+#include "NowPlaying.h"
 #include "Session.h"
 #include "Settings.h"
 #ifdef WD_DEVTOOLS
@@ -246,6 +247,7 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("WeechatDesktop.Core", 1, 0, "Emoji", emoji);
     qmlRegisterSingletonInstance("WeechatDesktop.Core", 1, 0, "Previews", previews);
     qmlRegisterSingletonInstance("WeechatDesktop.Core", 1, 0, "Platform", platform);
+    qmlRegisterSingletonInstance("WeechatDesktop.Core", 1, 0, "NowPlaying", session->nowPlaying());
     qmlRegisterUncreatableType<Buffer>("WeechatDesktop.Core", 1, 0, "Buffer", QStringLiteral("from the relay"));
     qmlRegisterUncreatableType<LineModel>("WeechatDesktop.Core", 1, 0, "LineModel", QStringLiteral("from a buffer"));
     qmlRegisterUncreatableType<NickModel>("WeechatDesktop.Core", 1, 0, "NickModel", QStringLiteral("from a buffer"));

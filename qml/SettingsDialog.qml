@@ -274,6 +274,56 @@ Popup {
                             checked: AppSettings.inlineImages
                             onToggled: AppSettings.inlineImages = checked
                         }
+                        Row2 {
+                            Layout.topMargin: 6
+                            label: qsTr("Now playing (/np)")
+                            description: qsTr("Only this player is asked, so nothing else you play ends up in a channel.")
+                            AppButton {
+                                id: npButton
+                                text: AppSettings.npPlayer ? NowPlaying.playerName(AppSettings.npPlayer) : qsTr("None")
+                                onClicked: {
+                                    const entries = [{ id: "", text: qsTr("None"), checked: !AppSettings.npPlayer }]
+                                    const players = NowPlaying.players()
+                                    if (players.length)
+                                        entries.push({ separator: true })
+                                    for (const p of players)
+                                        entries.push({ id: p.key, text: p.name, checked: p.key === AppSettings.npPlayer })
+                                    if (!players.length)
+                                        entries.push({ id: "-", text: qsTr("No players running"), enabled: false })
+                                    Platform.popupMenu("npplayer", entries, npButton, 0, npButton.height + 2)
+                                }
+                                Connections {
+                                    target: Platform
+                                    function onMenuTriggered(tag, id) { if (tag === "npplayer") AppSettings.npPlayer = id }
+                                }
+                            }
+                        }
+                        ColumnLayout {
+                            visible: AppSettings.npPlayer.length > 0
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 10
+                            Layout.rightMargin: 10
+                            Layout.bottomMargin: 6
+                            spacing: 6
+                            Text {
+                                Layout.fillWidth: true
+                                text: qsTr("What /np sends. {track} is “Artist – Title” (just the title if there's no artist); also {artist}, {title}, {album} and {player}.")
+                                color: Theme.muted
+                                font.pixelSize: Theme.small
+                                wrapMode: Text.Wrap
+                            }
+                            AppTextField {
+                                id: npFormatField
+                                Layout.fillWidth: true
+                                implicitHeight: 34
+                                text: AppSettings.npFormat
+                                onEditingFinished: AppSettings.npFormat = text.trim() || "/me np: {track}"
+                                Connections {
+                                    target: AppSettings
+                                    function onNpFormatChanged() { if (!npFormatField.activeFocus) npFormatField.text = AppSettings.npFormat }
+                                }
+                            }
+                        }
                     }
 
                     // ---------------- Notifications
