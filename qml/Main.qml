@@ -121,6 +121,7 @@ ApplicationWindow {
             else if (a === "light") AppSettings.theme = "light"
             else if (a === "compact") AppSettings.layout = "compact"
             else if (a === "completion") chat.insertText(":sm")
+            else if (a === "command") chat.insertText("/join")
             else if (a === "nicks") chat.insertText("@a")
             else if (a === "unread") Relay.openNextUnread()
             else if (a === "query") { Relay.openQuery("alice"); queryTimer.start() }

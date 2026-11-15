@@ -23,7 +23,11 @@ Item {
     property bool confirming: false
     readonly property var lines: area.text.split("\n").filter(l => l.trim().length > 0)
 
-    implicitHeight: box.implicitHeight + (confirming ? confirmRow.implicitHeight + 6 : hint.shown ? hint.implicitHeight : 0) + 22
+    // The hint under the box ("Command — runs in WeeChat", …) sits in the bottom padding, which is
+    // always tall enough for it, so typing "/" doesn't push the box up.
+    readonly property real bottomPad: Math.max(18, hintMetrics.height + 6)
+    FontMetrics { id: hintMetrics; font.pixelSize: Theme.tiny }
+    implicitHeight: box.implicitHeight + (confirming ? confirmRow.implicitHeight + 28 : 4 + bottomPad)
 
     function focusInput() { area.forceActiveFocus() }
     function insert(t) {

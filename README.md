@@ -122,7 +122,7 @@ a frame every 100 ms for the first 4 seconds, to check that startup doesn't visi
 
 ```sh
 QT_QPA_PLATFORM=offscreen ./build/weechat-desktop --screenshot shot.png \
-    --screenshot-action switcher   # or: emoji, settings, settings-messages, mentions, completion, light, compact, unread
+    --screenshot-action switcher   # or: emoji, settings, settings-messages, command, mentions, completion, light, compact, unread
 ```
 
 `tools/genemoji.py` regenerates `resources/emoji.json` from
