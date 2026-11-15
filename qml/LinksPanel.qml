@@ -139,7 +139,7 @@ Popup {
                     panel.activate(panel.shown[currentIndex], e.modifiers & Qt.ShiftModifier)
                 } else if (e.matches(StandardKey.Copy)) {
                     panel.activate(panel.shown[currentIndex], true)
-                } else if (e.text === "/") {
+                } else if (e.text === "/" || (e.key === Qt.Key_Up && currentIndex <= 0)) {
                     filter.forceActiveFocus()
                 } else if (e.key === Qt.Key_Backspace) {
                     panel.hintTyped = panel.hintTyped.slice(0, -1)

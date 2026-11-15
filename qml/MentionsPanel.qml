@@ -32,7 +32,7 @@ Popup {
     background: Rectangle { radius: Theme.radiusLarge; color: Theme.surface; border.width: 1; border.color: Theme.border }
     enter: Transition { NumberAnimation { property: "x"; from: panel.parent.width; to: panel.parent.width - panel.width - 12; duration: Theme.anim; easing.type: Easing.OutCubic } }
 
-    onOpened: { list.forceActiveFocus(); Relay.markMentionsSeen() }
+    onOpened: { filter.forceActiveFocus(); Relay.markMentionsSeen() }
     onClosed: { filter.text = ""; showMuted = false }
 
     contentItem: ColumnLayout {
@@ -62,8 +62,11 @@ Popup {
             leadingIcon: "search"
             placeholderText: qsTr("Filter by nick, text or buffer")
             onTextChanged: list.currentIndex = 0
-            Keys.onDownPressed: list.forceActiveFocus()
+            // The filter keeps the focus; Up/Down move the selection in the list below.
+            Keys.onDownPressed: list.incrementCurrentIndex()
+            Keys.onUpPressed: list.decrementCurrentIndex()
             Keys.onReturnPressed: if (list.currentItem) list.currentItem.clicked()
+            Keys.onEnterPressed: if (list.currentItem) list.currentItem.clicked()
             Keys.onEscapePressed: (e) => { if (text.length) text = ""; else panel.close(); e.accepted = true }
         }
         // Muted nicks: how many are hidden, and a way to see them.
