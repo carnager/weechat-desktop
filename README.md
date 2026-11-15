@@ -17,8 +17,9 @@ quick switcher, and a keyboard-first workflow that still works well with a mouse
   <img src="Screenshots/emoji.png" width="32%" alt=":shortcode emoji suggestions" />
 </p>
 <p>
-  <img src="Screenshots/links.png" width="49%" alt="The links panel (Ctrl+Shift+O): every link in the buffer, newest first, with hint labels" />
-  <img src="Screenshots/mentions.png" width="49%" alt="The mentions panel (Ctrl+Shift+M): highlights from every buffer, muted nicks hidden" />
+  <img src="Screenshots/links.png" width="32%" alt="The links panel (Ctrl+Shift+O): every link in the buffer, newest first, with hint labels" />
+  <img src="Screenshots/mentions.png" width="32%" alt="The mentions panel (Ctrl+Shift+M): highlights from every buffer, muted nicks hidden" />
+  <img src="Screenshots/settings.png" width="32%" alt="The settings dialog: theme, accent colour, layout and text size" />
 </p>
 
 ## Features
