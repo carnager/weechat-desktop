@@ -4,6 +4,7 @@
 #include <QNetworkAccessManager>
 #include <QObject>
 #include <QTimer>
+#include <QUrl>
 #include <QVariantMap>
 
 /// OpenGraph link previews and image detection, fetched once per URL and cached.
@@ -28,6 +29,10 @@ public:
 
     /// Exposed for tests.
     static QVariantMap parseHtml(const QByteArray &html, const QString &url);
+    /// The oEmbed endpoint for sites whose pages are too heavy to scrape (YouTube buries its
+    /// OpenGraph tags ~850 KB into the page), or an empty URL.
+    static QUrl oembedUrl(const QString &url);
+    static QVariantMap parseOEmbed(const QByteArray &json, const QString &url);
 
 signals:
     void updated(const QString &url);

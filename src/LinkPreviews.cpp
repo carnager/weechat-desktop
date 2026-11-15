@@ -11,6 +11,7 @@
 #include <QRegularExpression>
 #include <QTextDocumentFragment>
 #include <QUrl>
+#include <QUrlQuery>
 
 namespace {
 constexpr qint64 kMaxBytes = 768 * 1024;
@@ -55,6 +56,9 @@ void LinkPreviews::load()
     for (auto it = all.begin(); it != all.end(); ++it) {
         QVariantMap e = it.value().toObject().toVariantMap();
         if (now - e.value(QStringLiteral("t")).toLongLong() > kMaxAgeSecs)
+            continue;
+        // Scraped before oEmbed was used for this site (usually a failure): fetch again.
+        if (e.value(QStringLiteral("src")).toString() != u"oembed" && !oembedUrl(it.key()).isEmpty())
             continue;
         m_cache.insert(it.key(), e);
     }
@@ -152,6 +156,59 @@ QVariantMap LinkPreviews::parseHtml(const QByteArray &bytes, const QString &url)
             {QStringLiteral("site"), site.isEmpty() ? QUrl(url).host() : site}};
 }
 
+QUrl LinkPreviews::oembedUrl(const QString &url)
+{
+    const QUrl u(url);
+    const QString host = u.host().toLower();
+    const bool youtube = host == u"youtu.be" || host == u"youtube.com" || host.endsWith(u".youtube.com");
+    if (!youtube)
+        return {};
+    // Normalise to a watch URL, which oEmbed accepts for videos, shorts and live streams alike.
+    QString id;
+    static const QRegularExpression idRe(QStringLiteral(R"re(^[A-Za-z0-9_-]{11}$)re"));
+    if (host == u"youtu.be") {
+        id = u.path().section(u'/', 1, 1);
+    } else if (u.path() == u"/watch") {
+        id = QUrlQuery(u).queryItemValue(QStringLiteral("v"));
+    } else {
+        const QString first = u.path().section(u'/', 1, 1);
+        if (first == u"shorts" || first == u"live" || first == u"embed" || first == u"v")
+            id = u.path().section(u'/', 2, 2);
+    }
+    if (!idRe.match(id).hasMatch())
+        return {};
+    QUrl endpoint(QStringLiteral("https://www.youtube.com/oembed"));
+    QUrlQuery q;
+    q.addQueryItem(QStringLiteral("url"), QStringLiteral("https://www.youtube.com/watch?v=") + id);
+    q.addQueryItem(QStringLiteral("format"), QStringLiteral("json"));
+    endpoint.setQuery(q);
+    return endpoint;
+}
+
+QVariantMap LinkPreviews::parseOEmbed(const QByteArray &json, const QString &url)
+{
+    const QJsonObject o = QJsonDocument::fromJson(json).object();
+    const QString title = o.value(QStringLiteral("title")).toString().simplified();
+    const QString image = o.value(QStringLiteral("thumbnail_url")).toString();
+    if (title.isEmpty() && image.isEmpty())
+        return {{QStringLiteral("status"), QStringLiteral("none")}, {QStringLiteral("src"), QStringLiteral("oembed")}};
+    QVariantMap r{{QStringLiteral("src"), QStringLiteral("oembed")},
+                  {QStringLiteral("status"), QStringLiteral("ready")},
+                  {QStringLiteral("type"), QStringLiteral("page")},
+                  {QStringLiteral("url"), url},
+                  {QStringLiteral("title"), title},
+                  {QStringLiteral("description"), o.value(QStringLiteral("author_name")).toString().simplified()},
+                  {QStringLiteral("image"), image},
+                  {QStringLiteral("site"), o.value(QStringLiteral("provider_name")).toString(QUrl(url).host())}};
+    const int w = o.value(QStringLiteral("thumbnail_width")).toInt();
+    const int h = o.value(QStringLiteral("thumbnail_height")).toInt();
+    if (w > 0 && h > 0) {
+        r.insert(QStringLiteral("iw"), w);
+        r.insert(QStringLiteral("ih"), h);
+    }
+    return r;
+}
+
 QVariantMap LinkPreviews::get(const QString &url, bool fetchPages)
 {
     if (const auto it = m_cache.constFind(url); it != m_cache.constEnd())
@@ -174,22 +231,32 @@ QVariantMap LinkPreviews::get(const QString &url, bool fetchPages)
         m_cache.clear();
     m_cache.insert(url, {{QStringLiteral("status"), QStringLiteral("loading")}});
 
-    QNetworkRequest req(u);
+    const QUrl oembed = oembedUrl(url);
+    QNetworkRequest req(oembed.isEmpty() ? u : oembed);
     req.setHeader(QNetworkRequest::UserAgentHeader,
                   QStringLiteral("Mozilla/5.0 (X11; Linux x86_64) WeeChatDesktop/0.1 (link preview)"));
-    req.setRawHeader("Accept", "text/html,application/xhtml+xml,image/*;q=0.9,*/*;q=0.5");
+    req.setRawHeader("Accept", oembed.isEmpty() ? "text/html,application/xhtml+xml,image/*;q=0.9,*/*;q=0.5"
+                                                : "application/json");
     QNetworkReply *reply = m_nam.get(req);
     ++m_inFlight;
 
     auto buffer = std::make_shared<QByteArray>();
-    connect(reply, &QNetworkReply::readyRead, this, [reply, buffer] {
+    connect(reply, &QNetworkReply::readyRead, this, [reply, buffer, html = oembed.isEmpty()] {
         buffer->append(reply->read(kMaxBytes - buffer->size()));
-        if (buffer->size() >= kMaxBytes || buffer->contains("</head>"))
+        if (buffer->size() >= kMaxBytes || (html && buffer->contains("</head>")))
             reply->abort();
     });
-    connect(reply, &QNetworkReply::finished, this, [this, reply, buffer, url] {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, buffer, url, oembed] {
         --m_inFlight;
         reply->deleteLater();
+        if (!oembed.isEmpty()) {
+            if (reply->isOpen())
+                buffer->append(reply->readAll().left(kMaxBytes));
+            // A network failure is not cached across runs (no "src"), so it is retried next start.
+            finish(url, reply->error() == QNetworkReply::NoError ? parseOEmbed(*buffer, url)
+                                                                 : QVariantMap{{QStringLiteral("status"), QStringLiteral("none")}});
+            return;
+        }
         const QString type = reply->header(QNetworkRequest::ContentTypeHeader).toString();
         if (reply->isOpen())
             buffer->append(reply->readAll().left(kMaxBytes));

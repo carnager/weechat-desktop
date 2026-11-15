@@ -293,6 +293,30 @@ private slots:
         QVERIFY(LinkPreviews::isImageUrl(QStringLiteral("https://x.org/cat.JPG?size=large")));
         QVERIFY(!LinkPreviews::isImageUrl(QStringLiteral("https://x.org/page.html")));
     }
+
+    void youtubeOEmbed()
+    {
+        const QString watch = QStringLiteral("https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v%3DdQw4w9WgXcQ&format=json");
+        for (const char *u : {"https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42", "https://youtu.be/dQw4w9WgXcQ?si=x",
+                              "https://m.youtube.com/shorts/dQw4w9WgXcQ", "https://music.youtube.com/watch?v=dQw4w9WgXcQ",
+                              "https://youtube.com/live/dQw4w9WgXcQ"})
+            QCOMPARE(LinkPreviews::oembedUrl(QString::fromLatin1(u)).toString(QUrl::FullyEncoded), watch);
+        QVERIFY(LinkPreviews::oembedUrl(QStringLiteral("https://www.youtube.com/@channel")).isEmpty());
+        QVERIFY(LinkPreviews::oembedUrl(QStringLiteral("https://example.org/watch?v=dQw4w9WgXcQ")).isEmpty());
+
+        const QByteArray json = R"({"title":"Never Gonna Give You Up","author_name":"Rick Astley",)"
+                                R"("provider_name":"YouTube","thumbnail_url":"https://i.ytimg.com/vi/x/hqdefault.jpg",)"
+                                R"("thumbnail_width":480,"thumbnail_height":360})";
+        const auto r = LinkPreviews::parseOEmbed(json, QStringLiteral("https://youtu.be/x"));
+        QCOMPARE(r.value("status").toString(), QStringLiteral("ready"));
+        QCOMPARE(r.value("title").toString(), QStringLiteral("Never Gonna Give You Up"));
+        QCOMPARE(r.value("description").toString(), QStringLiteral("Rick Astley"));
+        QCOMPARE(r.value("site").toString(), QStringLiteral("YouTube"));
+        QCOMPARE(r.value("image").toString(), QStringLiteral("https://i.ytimg.com/vi/x/hqdefault.jpg"));
+        QCOMPARE(r.value("iw").toInt(), 480);
+        QCOMPARE(LinkPreviews::parseOEmbed("{}", QStringLiteral("https://youtu.be/x")).value("status").toString(),
+                 QStringLiteral("none"));
+    }
 };
 
 QTEST_MAIN(CoreTest)
