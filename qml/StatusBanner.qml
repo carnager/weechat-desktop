@@ -13,7 +13,7 @@ Rectangle {
     Timer { id: graceTimer; interval: 1200; onTriggered: banner.shown = banner.problem }
     readonly property bool failed: Relay.state === 4
     visible: implicitHeight > 0
-    implicitHeight: problem && (shown || failed) && AppSettings.hasConnection() ? row.implicitHeight + 14 : 0
+    implicitHeight: problem && (shown || failed) && AppSettings.host.length > 0 ? row.implicitHeight + 14 : 0
     clip: true
     color: Relay.state === 4 ? Theme.alpha(Theme.danger, 0.14) : Theme.alpha(Theme.warn, 0.12)
     Behavior on implicitHeight { NumberAnimation { duration: Theme.anim; easing.type: Easing.OutCubic } }

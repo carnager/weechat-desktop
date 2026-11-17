@@ -33,9 +33,11 @@ ApplicationWindow {
     }
 
     // The connect screen: first run, "Edit connection", or the first attempt this session failed.
-    readonly property bool showConnect: !AppSettings.hasConnection() || connectRequested
-                                        || (Relay.state === 4 && !everSynced)
-    property bool connectRequested: false
+    // First run starts with connectRequested set, so the screen stays up until the relay has synced
+    // (ConnectView's done()). Not a hasConnection() call in the binding: an invokable isn't tracked,
+    // and the short-circuit would leave the binding with no dependencies at all.
+    readonly property bool showConnect: connectRequested || (Relay.state === 4 && !everSynced)
+    property bool connectRequested: !AppSettings.hasConnection()
     property bool everSynced: false
     Connections {
         target: Relay
