@@ -14,6 +14,9 @@ Rectangle {
     signal nickClicked(string nick, Item item)
 
     readonly property var buffer: Relay.current
+    // Queries can have their own layout (AppSettings.queryLayout, empty = same as channels).
+    readonly property string layout: buffer && buffer.kind === "private" && AppSettings.queryLayout
+                                     ? AppSettings.queryLayout : AppSettings.layout
     readonly property bool inputEmpty: input.text.length === 0
     readonly property bool inputConfirming: input.confirming
     readonly property bool atBottom: list.atYEnd
@@ -394,6 +397,7 @@ Rectangle {
 
                 delegate: MessageDelegate {
                     selection: chatSel
+                    compact: chat.layout === "compact"
                     flash: chat.flashId !== null && lineId === chat.flashId
                     onNickClicked: (nick, item) => chat.nickClicked(nick, item)
                     onReply: (nick) => chat.insertText(nick + ": ")

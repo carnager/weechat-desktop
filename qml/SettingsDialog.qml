@@ -205,6 +205,16 @@ Popup {
                             }
                         }
                         Row2 {
+                            label: qsTr("Query layout")
+                            description: qsTr("Private conversations can use a different layout.")
+                            Segmented {
+                                options: [{ value: "", label: qsTr("Same") }, { value: "cozy", label: qsTr("Cozy") },
+                                          { value: "compact", label: qsTr("Compact") }]
+                                value: AppSettings.queryLayout
+                                onPicked: (v) => AppSettings.queryLayout = v
+                            }
+                        }
+                        Row2 {
                             label: qsTr("Text size")
                             description: qsTr("Ctrl+= / Ctrl+- / Ctrl+0 work anywhere.")
                             RowLayout {

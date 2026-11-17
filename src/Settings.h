@@ -38,6 +38,7 @@ class Settings : public QObject
     WD_SETTING(QString, accent, Accent, QStringLiteral("#8ea2ff"))
     WD_SETTING(int, fontSize, FontSize, 14)
     WD_SETTING(QString, layout, Layout, QStringLiteral("cozy")) // cozy | compact
+    WD_SETTING(QString, queryLayout, QueryLayout, QString()) // empty: same as layout
     WD_SETTING(bool, use24h, Use24h, true)
     WD_SETTING(bool, renderColors, RenderColors, true)
     WD_SETTING(bool, showJoinPart, ShowJoinPart, true)
