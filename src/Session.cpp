@@ -64,6 +64,8 @@ Session::Session(Settings *settings, Notifier *notifier, QObject *parent)
     connect(settings, &Settings::use24hChanged, this, &Session::applySettings);
     connect(settings, &Settings::mutedNicksChanged, this, &Session::updateMuted);
     updateMuted();
+    connect(settings, &Settings::noPreviewNicksChanged, this, &Session::updatePreviewless);
+    updatePreviewless();
     {
         auto &ctx = FormatContext::current();
         ctx.showJoinPart = settings->showJoinPart();
@@ -537,14 +539,33 @@ void Session::setMuted(const QString &nick, bool muted)
     m_settings->setMutedNicks(words.join(QLatin1Char(' ')));
 }
 
+static QList<QRegularExpression> nickPatterns(const QString &list)
+{
+    QList<QRegularExpression> out;
+    const QStringList words = list.split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
+    for (const QString &w : words)
+        out << QRegularExpression(QRegularExpression::wildcardToRegularExpression(w),
+                                  QRegularExpression::CaseInsensitiveOption);
+    return out;
+}
+
 void Session::updateMuted()
 {
-    m_muted.clear();
-    const QStringList words = m_settings->mutedNicks().split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
-    for (const QString &w : words)
-        m_muted << QRegularExpression(QRegularExpression::wildcardToRegularExpression(w),
-                                      QRegularExpression::CaseInsensitiveOption);
+    m_muted = nickPatterns(m_settings->mutedNicks());
     filterMentions();
+}
+
+void Session::updatePreviewless()
+{
+    m_previewless = nickPatterns(m_settings->noPreviewNicks());
+}
+
+bool Session::isPreviewless(const QString &nick) const
+{
+    for (const auto &re : m_previewless)
+        if (re.match(nick).hasMatch())
+            return true;
+    return false;
 }
 
 void Session::filterMentions()

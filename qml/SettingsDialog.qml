@@ -284,6 +284,35 @@ Popup {
                             checked: AppSettings.inlineImages
                             onToggled: AppSettings.inlineImages = checked
                         }
+                        ColumnLayout {
+                            visible: AppSettings.linkPreviews || AppSettings.inlineImages
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 10
+                            Layout.rightMargin: 10
+                            Layout.topMargin: 6
+                            Layout.bottomMargin: 6
+                            spacing: 6
+                            Text { text: qsTr("No previews from"); color: Theme.text; font.pixelSize: Theme.fontSize }
+                            Text {
+                                Layout.fillWidth: true
+                                text: qsTr("Links posted by these nicks get no preview or inline image — useful for bots that already post the page title. Separate with spaces; * matches anything.")
+                                color: Theme.muted
+                                font.pixelSize: Theme.small
+                                wrapMode: Text.Wrap
+                            }
+                            AppTextField {
+                                id: noPreviewField
+                                Layout.fillWidth: true
+                                implicitHeight: 34
+                                placeholderText: qsTr("e.g. phrik *bot")
+                                text: AppSettings.noPreviewNicks
+                                onEditingFinished: AppSettings.noPreviewNicks = text.trim()
+                                Connections {
+                                    target: AppSettings
+                                    function onNoPreviewNicksChanged() { if (!noPreviewField.activeFocus) noPreviewField.text = AppSettings.noPreviewNicks }
+                                }
+                            }
+                        }
                         Row2 {
                             Layout.topMargin: 6
                             label: qsTr("Now playing (/np)")

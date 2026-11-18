@@ -71,6 +71,8 @@ public:
     Q_INVOKABLE bool isMuted(const QString &nick) const;
     /// Add [nick] to (or take it off) the muted list.
     Q_INVOKABLE void setMuted(const QString &nick, bool muted);
+    /// True if [nick]'s links shouldn't get previews (Settings::noPreviewNicks).
+    Q_INVOKABLE bool isPreviewless(const QString &nick) const;
     int unseenMentions() const { return m_unseenMentions; }
     Q_INVOKABLE void markMentionsSeen() { m_unseenMentions = 0; emit mentionsChanged(); }
     Completer *completer() const { return m_completer; }
@@ -167,7 +169,9 @@ private:
     QVariantList m_mentions;    // shown: not from muted nicks
     QVariantList m_allMentions; // everything, newest first
     QList<QRegularExpression> m_muted;
+    QList<QRegularExpression> m_previewless;
     void updateMuted();
+    void updatePreviewless();
     void filterMentions();
     int m_unseenMentions = 0;
     QSet<QString> m_mentionKeys; // "bufferId:lineId", so history and live lines don't double up

@@ -372,7 +372,10 @@ Item {
                         // Link previews / inline images
                         Repeater {
                             id: previews
-                            model: AppSettings.linkPreviews || AppSettings.inlineImages ? msg.urls.slice(0, 3) : []
+                            // noPreviewNicks is read so the binding re-runs when the list changes
+                            model: (AppSettings.linkPreviews || AppSettings.inlineImages)
+                                   && (AppSettings.noPreviewNicks, !Relay.isPreviewless(msg.nick))
+                                   ? msg.urls.slice(0, 3) : []
                             delegate: LinkPreview {
                                 required property string modelData
                                 url: modelData

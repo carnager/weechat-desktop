@@ -48,6 +48,9 @@ class Settings : public QObject
     WD_SETTING(bool, emojiShortcodes, EmojiShortcodes, true)
     WD_SETTING(bool, linkPreviews, LinkPreviews, false) // off by default: fetching tells sites your IP
     WD_SETTING(bool, inlineImages, InlineImages, false)
+    // Nicks whose links get no preview or inline image, e.g. bots that already post the title.
+    // Space separated, * wildcards.
+    WD_SETTING(QString, noPreviewNicks, NoPreviewNicks, QString())
     // "/np": the MPRIS player to ask (NowPlaying::keyOf), empty for none, and what to send.
     WD_SETTING(QString, npPlayer, NpPlayer, QString())
     WD_SETTING(QString, npFormat, NpFormat, QStringLiteral("/me np: {track}"))
